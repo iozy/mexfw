@@ -17,11 +17,17 @@ inline bool file_exists (const std::string& name) {
     return (stat(name.c_str(), &buffer) == 0);
 }
 
-Document parse_file(const std::string& filename) {
+inline Document parse_file(const std::string& filename) {
     Document d;
     std::ifstream ifs(filename);
     IStreamWrapper isw(ifs);
     d.ParseStream(isw);
+    return d;
+}
+
+inline Document parse_str(const std::string& s) {
+    Document d;
+    d.Parse(s.c_str());
     return d;
 }
 

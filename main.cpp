@@ -8,6 +8,7 @@
 #include "exchanges.hpp"
 #include "mexfw.hpp"
 #include "goodies.hpp"
+#include "cex.hpp"
 
 using namespace elle::reactor;
 using namespace rapidjson;
@@ -16,20 +17,12 @@ using namespace mexfw::utils;
 
 int main(void) {
     Scheduler sched;
-    rest_api_base<bool> x;
-    x.load_proxies("proxies.json");
 
-    for(size_t i = 0; i < 5; ++i) {
-        auto proxy = x.get_proxy();
-        std::cout << proxy.host() << '\n';
-    }
 
     Thread main_thread(sched, "main thread", [] {
-        http::Request r("https://yobit.net/api/3/info", http::Method::GET, "application/json");
-        Document d;
-        d.Parse(r.response().string().c_str());
-        for(const auto& i : d["pairs"].GetObject())
-            std::cout << i.name.GetString() << '\n';
+        rest_api<CEX> x;
+        x.load_proxies("proxies.json");
+        std::cout << x.get_all_pairs() << '\n';
     });
     sched.run();
     return 0;

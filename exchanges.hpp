@@ -6,6 +6,8 @@
 #define EXCHANGES_H
 #include <initializer_list>
 
+namespace mexfw {
+
 struct CCEX {
     /*c-cex.com*/
     static constexpr auto fee = 0.002;
@@ -56,4 +58,5 @@ struct LIVECOIN {
     /*livecoin.net*/
 };
 
+}
 #endif  /*EXCHANGES_H*/
