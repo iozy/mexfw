@@ -2078,6 +2078,7 @@ main.o: main.cpp thirdparty/elle/src/iostream \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/asio/impl/write_at.hpp \
 		thirdparty/elle/src/elle/reactor/duration.hh \
 		thirdparty/elle/src/elle/Duration.hh \
+		thirdparty/elle/src/elle/date/date.h \
 		thirdparty/elle/src/elle/printf.hh \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/format/exceptions.hpp \
 		thirdparty/elle/src/elle/printf.hxx \
@@ -2320,7 +2321,8 @@ main.o: main.cpp thirdparty/elle/src/iostream \
 		thirdparty/elle/src/elle/reactor/Scope.hh \
 		thirdparty/elle/src/elle/reactor/Channel.hh \
 		thirdparty/elle/src/elle/reactor/Channel.hxx \
-		goodies.hpp
+		goodies.hpp \
+		cex.hpp
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o main.cpp
 
 ####### Install
