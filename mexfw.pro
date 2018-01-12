@@ -10,6 +10,7 @@ INCLUDEPATH += . \
                ./thirdparty/elle/src \
                ./thirdparty/elle/_build/linux64/boost/1.60.0/include \
                ./thirdparty/rapidjson/include \
+               ./thirdparty/CTPL \
 
 LIBS += ./thirdparty/elle/_build/linux64/lib/libelle_core.so \
         ./thirdparty/elle/_build/linux64/lib/libelle_reactor.so \
