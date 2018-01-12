@@ -7,15 +7,15 @@ CONFIG += console c++14 thread
 CONFIG -= qt app_bundle
 TARGET = mexfw
 INCLUDEPATH += . \
-               ./elle/src \
-               ./elle/_build/linux64/boost/1.60.0/include \
-               ./rapidjson/include \
+               ./thirdparty/elle/src \
+               ./thirdparty/elle/_build/linux64/boost/1.60.0/include \
+               ./thirdparty/rapidjson/include \
 
-LIBS += ./elle/_build/linux64/lib/libelle_core.so \
-        ./elle/_build/linux64/lib/libelle_reactor.so \
-        ./elle/_build/linux64/lib/libelle_protocol.so \
-        ./elle/_build/linux64/lib/libfuse.so.2
-LIBS += ./elle/_build/linux64/lib/libboost_*
+LIBS += ./thirdparty/elle/_build/linux64/lib/libelle_core.so \
+        ./thirdparty/elle/_build/linux64/lib/libelle_reactor.so \
+        ./thirdparty/elle/_build/linux64/lib/libelle_protocol.so \
+        ./thirdparty/elle/_build/linux64/lib/libfuse.so.2
+LIBS += ./thirdparty/elle/_build/linux64/lib/libboost_*
 
 # Input
 HEADERS += *.hpp 
