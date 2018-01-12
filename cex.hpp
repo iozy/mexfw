@@ -31,6 +31,8 @@ public:
         }, 10);
         return all_pairs;
     }
+//    void get_ob(const std::vector<std::string>& pairs, arbtools::arbitrage& arb) {}
+
 };
 
 }
