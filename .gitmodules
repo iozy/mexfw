@@ -1,0 +1,6 @@
+[submodule "thirdparty/elle"]
+	path = thirdparty/elle
+	url = https://github.com/infinit/elle
+[submodule "thirdparty/rapidjson"]
+	path = thirdparty/rapidjson
+	url = https://github.com/Tencent/rapidjson
