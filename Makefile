@@ -15,7 +15,7 @@ CXX           = g++
 DEFINES       = 
 CFLAGS        = -m64 -pipe -O2 -D_REENTRANT -Wall -W -fPIC $(DEFINES)
 CXXFLAGS      = -m64 -pipe -O2 -D_REENTRANT -std=c++1y -Wall -W -fPIC $(DEFINES)
-INCPATH       = -I. -I. -Ithirdparty/elle/src -Ithirdparty/elle/_build/linux64/boost/1.60.0/include -Ithirdparty/rapidjson/include -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64
+INCPATH       = -I. -I. -Ithirdparty/elle/src -Ithirdparty/elle/_build/linux64/boost/1.60.0/include -Ithirdparty/rapidjson/include -Ithirdparty/CTPL -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64
 QMAKE         = /usr/lib/x86_64-linux-gnu/qt5/bin/qmake
 DEL_FILE      = rm -f
 CHK_DIR_EXISTS= test -d

@@ -7,6 +7,9 @@
 #include <fstream>
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
+#include <rapidjson/ostreamwrapper.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 namespace mexfw {
 namespace utils {
@@ -29,6 +32,23 @@ inline Document parse_str(const std::string& s) {
     Document d;
     d.Parse(s.c_str());
     return d;
+}
+
+std::string json_to_str(auto& d) {
+    StringBuffer buffer;
+    Writer<StringBuffer> writer(buffer);
+    d.Accept(writer);
+    return buffer.GetString();
+}
+
+void save_json(Document& d, const std::string& filename) {
+    std::ofstream ofs;
+    ofs.open(filename);
+    if(ofs.is_open()) {
+        auto json_str = json_to_str(d);
+        ofs << json_str;
+    }
+    ofs.close();
 }
 
 }
