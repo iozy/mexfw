@@ -19,31 +19,57 @@ using namespace mexfw;
 using namespace mexfw::utils;
 using namespace arbtools;
 
+typedef CEX EXCHANGE;
+
 int main(int argc, char *argv[]) {
     Scheduler sched;
+
+    if(!file_exists("settings.json")) {
+        std::cout << "Failed to open settings.json\n";
+        return -1;
+    }
+
     sched.signal_handle(SIGINT, [&] { sched.terminate(); });
     Thread main_thread(sched, "main thread", [] {
-        rest_api<TEST_PROXY> api;
-        //arbitrage arb(CEX::fee);
+        auto settings = parse_file("settings.json");
+
+        // checking for valid parameters;
+        // ...
+
+        rest_api<EXCHANGE> api(settings["proxy_flood"].GetBool());
+        arbitrage arb(EXCHANGE::fee);
+
         api.load_proxies();
-        api.test_proxies("https://cex.io/api/currency_limits");
-        //auto pairs = api.get_all_pairs();
-        //std::cout<<"All pairs: "<<pairs<<'\n';
-        //api.get_ob(pairs, arb);
-        //for(auto p: arb.all_pairs()) {
-        //    auto ob_e = arb.ob(p, 0);
-        //    std::cout<<p<<": "<<ob_e.first<<" "<<ob_e.second<<'\n';
+        //api.test_proxies("https://cex.io/api/currency_limits");
+        auto pairs = api.get_all_pairs();
+        std::cout << "All pairs: " << pairs << '\n';
+        api.get_ob(pairs, arb);
+
+        for(auto p : arb.all_pairs()) {
+            auto ob_e = arb.ob(p, 0);
+            std::cout << p << ": " << arb.ob(p) << '\n';
+        }
+
+        auto cycles = arb.find_cycles();
+        if(cycles.size()) std::cout<<"found: \n";
+        for(auto c: cycles) {
+            std::cout<<arb.cycle2string(c)<<'\n';
+        }
+        /*std::cout<<"performing tests\n";*/
+        //for(size_t i=0;i<5;++i) {
+        //api.test1("https://c-cex.com/t/api_pub.html?a=getfullorderbook");
+        //sleep(10s);
         //}
-        api.print_proxy_stats();
-        api.filter_proxies();
-        api.save_proxies();
-        std::cout<<"done\n";
+        //api.print_proxy_stats();
+        /*api.filter_proxies();*/
+        //api.save_proxies();
+        std::cout << "done\n";
     });
 
     try {
         sched.run();
     } catch(const std::runtime_error& e) {
-        std::cout<<"Error: "<<e.what()<<std::endl;
+        std::cout << "Error: " << e.what() << std::endl;
         return -1;
     }
 

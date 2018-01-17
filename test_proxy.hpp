@@ -22,7 +22,7 @@ struct TEST_PROXY {};
 
 template <>
 class rest_api<TEST_PROXY>: public rest_api_base<TEST_PROXY> {
-  public:
+public:
     void reset_counters() {
         ok_proxy_requests.clear();
         proxy_requests.clear();
@@ -44,10 +44,32 @@ class rest_api<TEST_PROXY>: public rest_api_base<TEST_PROXY> {
         }, 1, true);
     }
 
+    void test1(const std::string& url) {
+        std::vector<std::string> work(proxies.size(), url);
+        auto who = first_wins([this, url] {
+            auto proxy = this->get_proxy();
+            http::Request::Configuration conf(10s, {}, http::Version::v11, false, proxy);
+            http::Request r(url, http::Method::GET, "application/json", conf);
+            r.finalize();
+
+            if(r.status() != http::StatusCode::OK)
+                throw std::runtime_error("status code is not ok");
+
+            std::cout<<"go via "<<proxy<<'\n';
+            std::string response = r.response().string();
+            std::cout<<"received\n";
+            auto resp = parse_str(response);
+            this->ok_proxy_requests[proxy.host()]++;
+            std::cout<<"parsed"<<'\n';
+            return proxy;
+        }, 10);
+        std::cout << "And the winner is " << who << '\n';
+    }
+
     void filter_proxies() {
         decltype(proxies) good_proxies;
 
-        for(const auto& p: proxies) {
+        for(const auto& p : proxies) {
             if(ok_proxy_requests[p.host()] > 0)
                 good_proxies.push_back(p);
         }
@@ -60,12 +82,12 @@ class rest_api<TEST_PROXY>: public rest_api_base<TEST_PROXY> {
 
         for(const auto& p : proxies) {
             if(proxy_requests[p.host()] != 0 && ok_proxy_requests[p.host()] != 0) {
-                std::cout<<p<<" all_reqs="<<proxy_requests[p.host()]<<" ok_reqs="<<ok_proxy_requests[p.host()]<<'\n';
+                std::cout << p << " all_reqs=" << proxy_requests[p.host()] << " ok_reqs=" << ok_proxy_requests[p.host()] << '\n';
                 ok_proxies_sz++;
             }
         }
 
-        std::cout<<"Good proxies: "<<ok_proxies_sz<<" out of "<<proxy_requests.size()<<'\n';
+        std::cout << "Good proxies: " << ok_proxies_sz << " out of " << proxy_requests.size() << '\n';
     }
 
 };

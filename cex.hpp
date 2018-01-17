@@ -23,22 +23,23 @@ using namespace elle::chrono_literals;
 template<>
 class rest_api<CEX>: public rest_api_base<CEX> {
     ctpl::thread_pool tp;
+    bool proxy_flood;
 public:
-    rest_api(): tp(std::thread::hardware_concurrency()) {}
+    rest_api(bool proxy_flood = true): tp(std::thread::hardware_concurrency()), proxy_flood(proxy_flood) {}
     auto get_all_pairs() {
         std::vector<std::string> all_pairs;
         produce_consume({{}}, [&, this](auto) {
-            http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
-            http::Request r("https://cex.io/api/currency_limits", http::Method::GET, "application/json", conf);
-            r.finalize();
+            std::string response = this->first_wins([&, this] {
+                http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
+                http::Request r("https://cex.io/api/currency_limits", http::Method::GET, "application/json", conf);
+                r.finalize();
 
-            if(r.status() != http::StatusCode::OK) {
-                std::cout << "fuck ! it's not ok" << '\n';
-                //return;
-                throw std::runtime_error("status code is not ok");
-            }
-
-            auto resp = parse_str(r.response().string());
+                if(r.status() != http::StatusCode::OK) {
+                    throw std::runtime_error("status code is not ok");
+                }
+                return r.response().string();
+            }, proxy_flood ? 10 : 1);
+            auto resp = parse_str(response);
 
             for(const auto& k : resp["data"].GetObject()["pairs"].GetArray()) {
                 all_pairs.push_back(std::string(k.GetObject()["symbol1"].GetString()) + CEX::delimeter + k.GetObject()["symbol2"].GetString());
@@ -49,30 +50,26 @@ public:
 
     void get_ob(const std::vector<std::string>& pairs, arbtools::arbitrage& arb) {
         produce_consume(pairs, [&, this](auto p) {
-            //Document doms = this->first_wins([&, this, p] {
-            //std::string _p(p);
             boost::replace_all(p, ":", "/");
             auto url = "https://cex.io/api/order_book/" + p;
-            auto proxy = this->get_proxy();
-            http::Request::Configuration conf(3s, {}, http::Version::v11, true, proxy);
-            http::Request r(url, http::Method::GET, "application/json", conf);
-            r.finalize();
+            std::string response = this->first_wins([&, this, url = std::move(url)] {
+                auto proxy = this->get_proxy();
+                http::Request::Configuration conf(3s, {}, http::Version::v11, true, proxy);
+                http::Request r(url, http::Method::GET, "application/json", conf);
+                r.finalize();
 
-            if(r.status() != http::StatusCode::OK) {
-                std::cout << "fuck ! it's not ok" << '\n';
-                //return;
-                throw std::runtime_error("status code is not ok");
-            }
-
-            auto ft = tp.push([response = r.response().string()](int) {
+                if(r.status() != http::StatusCode::OK) {
+                    throw std::runtime_error("status code is not ok");
+                }
+                return r.response().string();
+            }, proxy_flood ? 10 : 1);
+            auto ft = tp.push([response = std::move(response)](int) {
                 return parse_str(response);
             });
 
             while(ft.wait_for(0s) != std::future_status::ready)
                 sleep(100ms);
 
-            //return ft.get();
-            //}, 4, 50);
             Document doms = ft.get();
             std::string c1, c2;
             std::tie(c1, c2) = arb.as_pair(doms["pair"].GetString(), ":");
@@ -98,7 +95,6 @@ public:
 
                 arb.recalc_rates(c1 + "-" + c2);
             }
-
         }, 15);
     }
 

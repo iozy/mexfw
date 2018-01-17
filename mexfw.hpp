@@ -48,11 +48,14 @@ public:
     // Proxy tools
     void load_proxies(const std::string& filename = "proxies.json") {
         proxies.clear();
+
         if(!file_exists(filename)) {
             proxies.push_back({network::ProxyType::None, {}, {}});
             return;
         }
+
         auto proxy_file = parse_file(filename);
+
 //       Document xx;
 //       xx["test"].GetArray()[0].GetUint();
         for(const auto& p : proxy_file.GetArray()) {
@@ -68,12 +71,12 @@ public:
         Document d;
         auto& alloc = d.GetAllocator();
         d.SetArray();
-        for(const auto& p: proxies) {
+
+        for(const auto& p : proxies) {
             //if(ok_proxy_requests[p.host()] == 0) continue;
             const char* proxy_type = p.type() == network::ProxyType::HTTP ? "HTTP" :
-            p.type() == network::ProxyType::HTTPS ? "HTTPS" :
-            p.type() == network::ProxyType::SOCKS ? "SOCKS5" : "None";
-
+                                     p.type() == network::ProxyType::HTTPS ? "HTTPS" :
+                                     p.type() == network::ProxyType::SOCKS ? "SOCKS5" : "None";
             Value v(kObjectType);
             v.AddMember("host", StringRef(p.host().c_str()), alloc);
             v.AddMember("port", Value().SetUint(p.port()), alloc);
@@ -84,6 +87,7 @@ public:
             v.AddMember("types", va, alloc);
             d.PushBack(v, alloc);
         }
+
         save_json(d, filename);
     }
 
@@ -98,6 +102,7 @@ public:
             if(switch_) {
                 std::rotate(proxies.begin(), std::next(proxies.begin(), 1), proxies.end());
             }
+
             auto proxy = *proxies.begin();
             proxy_requests[proxy.host()]++;
             return proxy;
@@ -115,11 +120,60 @@ public:
     // Patterns and routines to do async work
 protected:
     template<class F>
+    auto first_wins2(F worker = {}, size_t n_wrks = 4, size_t n_fail = 30, bool no_throw = false) {
+        decltype(worker()) result;
+        elle::With<Scope>() << [&, this] (Scope & scope) {
+            Channel<size_t> chan;
+            std::unordered_map<size_t, size_t> failures;
+            Barrier work_ready, work_done;
+            bool finish = false;
+
+            for(size_t i = 0; i < n_wrks; ++i) {
+                scope.run_background("worker" + std::to_string(i), [&, i, this] {
+                    work_ready.wait();
+
+                    while(!chan.empty()) {
+                        try {
+                            result = worker();
+                            work_done.open();
+
+                            break;
+                        } catch(...) {
+                            if(failures[i]++ < n_fail - 1) {
+                                chan.put(i);
+                            }
+                            else {
+                                //std::cout << "failed job=" << i << " failures=" << failures[i] << '\n';
+                                //failures[i] = 0;
+                                if(!no_throw) throw;
+                            }
+                        }
+                    }
+                });
+            }
+
+            scope.run_background("prod", [&] {
+                for(size_t i = 0; i < n_wrks; ++i) {
+                    chan.put(i);
+                }
+                work_ready.open();
+            });
+            scope.run_background("term", [&] {
+                work_done.wait();
+                chan.clear();
+                scope.terminate_now();
+            });
+
+            scope.wait();
+        };
+        return result;
+    }
+
+    template<class F>
     auto first_wins(F worker = {}, size_t n_wrks = 4, size_t n_fail = 30, bool no_throw = false) {
         decltype(worker()) result;
         elle::With<Scope>() << [&, this] (Scope & scope) {
             Channel<size_t> chan;
-
             std::unordered_map<size_t, size_t> failures;
             Barrier work_ready, work_done;
             bool finish = false;
@@ -131,15 +185,19 @@ protected:
                     while(!chan.empty()) {
                         try {
                             if(finish) break;
+
                             result = worker();
                             failures[i] = 0;
+
                             if(finish) break;
+
                             //std::cout<<"worker "<<i<<" wins\n";
                             chan.clear();
                             finish = true;
                             break;
                         } catch(...) {
                             if(finish) break;
+
                             if(failures[i]++ < n_fail - 1) {
                                 chan.put(i);
                             }
@@ -153,6 +211,7 @@ protected:
                     work_done.open();
                 });
             }
+
             scope.run_background("term", [&] {
                 work_done.wait();
                 chan.clear();
@@ -182,24 +241,24 @@ protected:
 
                     while(!chan.empty()) {
                         auto job = chan.get();
+
                         try {
                             worker(job);
                             failures[job] = 0;
                         } catch(...) {
-                                if(failures[job]++ < n_fail - 1) {
-                                    chan.put(job);
-                                }
-                                else {
-                                    //std::cout << "failed job=" << i << '\n';
-                                    //failures[job] = 0;
-                                    if(!no_throw) throw;
-                                }
-
+                            if(failures[job]++ < n_fail - 1) {
+                                chan.put(job);
+                            }
+                            else {
+                                //std::cout << "failed job=" << i << '\n';
+                                //failures[job] = 0;
+                                if(!no_throw) throw;
+                            }
                         }
-
                     }
                 });
             }
+
             scope.run_background("prod", [&] {
                 for(const auto& j : work) {
                     chan.put(j);

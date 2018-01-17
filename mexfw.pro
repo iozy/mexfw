@@ -12,6 +12,8 @@ INCLUDEPATH += . \
                ./thirdparty/rapidjson/include \
                ./thirdparty/CTPL \
 
+DEFINES += RAPIDJSON_SSE2 RAPIDJSON_NEON 
+
 LIBS += ./thirdparty/elle/_build/linux64/lib/libelle_core.so \
         ./thirdparty/elle/_build/linux64/lib/libelle_reactor.so \
         ./thirdparty/elle/_build/linux64/lib/libelle_protocol.so \
