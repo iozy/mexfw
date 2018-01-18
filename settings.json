@@ -3,7 +3,7 @@
     "request_timeout": 3,
     "retries": 10,
     "base_currency": "USD",
-    "blacklist": [" GHS "],
+    "blacklist": [ "GHS" ],
     "proxy_test":   true,
     "proxy_flood": true,
     "debug": true
