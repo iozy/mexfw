@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
     Barrier proxies_loaded;
 
     if(!file_exists("settings.json")) {
-        std::cout << "Failed to open settings.json\n";
+        std::cout<<"Failed to open settings.json\n";
         return -1;
     }
 
@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
         while(true)
         {
             api.load_proxies();
+            std::cout<<"Loading proxies is done ok.\n";
             proxies_loaded.open();
             sleep(30s);
         }
@@ -49,23 +50,23 @@ int main(int argc, char *argv[]) {
         while(true)
         {
             auto pairs = api.get_all_pairs();
-            std::cout << "All pairs: " << pairs << '\n';
+            std::cout<<"All pairs: "<<pairs<<'\n';
             api.get_ob(pairs, arb);
 
             for(auto p : arb.all_pairs()) {
                 auto ob_e = arb.ob(p, 0);
-                std::cout << p << ": " << arb.ob(p) << '\n';
+                std::cout<<p<<": "<<arb.ob(p)<<'\n';
             }
 
             auto cycles = arb.find_cycles();
 
-            if(cycles.size()) std::cout << "found: \n";
+            if(cycles.size()) std::cout<<"found: \n";
 
             for(auto c : cycles) {
-                std::cout << arb.cycle2string(c) << '\n';
+                std::cout<<arb.cycle2string(c)<<'\n';
             }
 
-            std::cout << "done\n";
+            std::cout<<"done\n";
             sleep(5s);
         }
 
@@ -74,7 +75,7 @@ int main(int argc, char *argv[]) {
     try {
         sched.run();
     } catch(const std::runtime_error& e) {
-        std::cout << "Error: " << e.what() << std::endl;
+        std::cout<<"Error: "<<e.what()<<std::endl;
         return -1;
     }
 
