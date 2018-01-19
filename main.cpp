@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
             sleep(30s);
         }
     });
-    sched.signal_handle(SIGINT, [&] { sched.terminate(); });
+    sched.signal_handle(SIGINT, [&] { std::cout<<"Exiting...\n"; sched.terminate(); });
     Thread main_thread(sched, "main thread", [&] {
         proxies_loaded.wait();
 
