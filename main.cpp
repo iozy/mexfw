@@ -38,6 +38,7 @@ int main(int argc, char *argv[]) {
         while(true)
         {
             api.load_proxies();
+            proxies_loaded.open();
             sleep(30s);
         }
     });
