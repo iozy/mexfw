@@ -5,6 +5,6 @@
     "base_currency": "USD",
     "blacklist": [ "GHS" ],
     "proxy_test":   true,
-    "proxy_flood": true,    
+    "proxy_flood": true,
     "debug": true
 }
