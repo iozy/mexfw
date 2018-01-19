@@ -5,6 +5,7 @@
 #include <rapidjson/istreamwrapper.h>
 #include <elle/reactor/scheduler.hh>
 #include <elle/reactor/Thread.hh>
+#include <elle/reactor/Barrier.hh>
 #include <elle/reactor/http/Request.hh>
 #include "exchanges.hpp"
 #include "mexfw.hpp"
@@ -23,47 +24,50 @@ typedef CEX EXCHANGE;
 
 int main(int argc, char *argv[]) {
     Scheduler sched;
+    Barrier proxies_loaded;
 
     if(!file_exists("settings.json")) {
         std::cout << "Failed to open settings.json\n";
         return -1;
     }
 
+    auto settings = parse_file("settings.json");
+    rest_api<EXCHANGE> api(settings["proxy_flood"].GetBool());
+    arbitrage arb(EXCHANGE::fee);
+    Thread proxy_thread(sched, "update proxies", [&] {
+        while(true)
+        {
+            api.load_proxies();
+            sleep(30s);
+        }
+    });
     sched.signal_handle(SIGINT, [&] { sched.terminate(); });
-    Thread main_thread(sched, "main thread", [] {
-        auto settings = parse_file("settings.json");
+    Thread main_thread(sched, "main thread", [&] {
+        proxies_loaded.wait();
 
-        // checking for valid parameters;
-        // ...
+        while(true)
+        {
+            auto pairs = api.get_all_pairs();
+            std::cout << "All pairs: " << pairs << '\n';
+            api.get_ob(pairs, arb);
 
-        rest_api<EXCHANGE> api(settings["proxy_flood"].GetBool());
-        arbitrage arb(EXCHANGE::fee);
+            for(auto p : arb.all_pairs()) {
+                auto ob_e = arb.ob(p, 0);
+                std::cout << p << ": " << arb.ob(p) << '\n';
+            }
 
-        api.load_proxies();
-        //api.test_proxies("https://cex.io/api/currency_limits");
-        auto pairs = api.get_all_pairs();
-        std::cout << "All pairs: " << pairs << '\n';
-        api.get_ob(pairs, arb);
+            auto cycles = arb.find_cycles();
 
-        for(auto p : arb.all_pairs()) {
-            auto ob_e = arb.ob(p, 0);
-            std::cout << p << ": " << arb.ob(p) << '\n';
+            if(cycles.size()) std::cout << "found: \n";
+
+            for(auto c : cycles) {
+                std::cout << arb.cycle2string(c) << '\n';
+            }
+
+            std::cout << "done\n";
+            sleep(5s);
         }
 
-        auto cycles = arb.find_cycles();
-        if(cycles.size()) std::cout<<"found: \n";
-        for(auto c: cycles) {
-            std::cout<<arb.cycle2string(c)<<'\n';
-        }
-        /*std::cout<<"performing tests\n";*/
-        //for(size_t i=0;i<5;++i) {
-        //api.test1("https://c-cex.com/t/api_pub.html?a=getfullorderbook");
-        //sleep(10s);
-        //}
-        //api.print_proxy_stats();
-        /*api.filter_proxies();*/
-        //api.save_proxies();
-        std::cout << "done\n";
     });
 
     try {
