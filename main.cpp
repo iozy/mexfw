@@ -6,7 +6,9 @@
 #include <elle/reactor/scheduler.hh>
 #include <elle/reactor/Thread.hh>
 #include <elle/reactor/Barrier.hh>
+#include <elle/reactor/Channel.hh>
 #include <elle/reactor/http/Request.hh>
+#include <ctpl.h>
 #include "exchanges.hpp"
 #include "mexfw.hpp"
 #include "goodies.hpp"
@@ -19,12 +21,18 @@ using namespace rapidjson;
 using namespace mexfw;
 using namespace mexfw::utils;
 using namespace arbtools;
+using namespace ctpl;
 
 typedef CEX EXCHANGE;
 
 int main(int argc, char *argv[]) {
     Scheduler sched;
     Barrier proxies_loaded;
+    thread_pool tp(std::thread::hardware_concurrency());
+
+    tp.push([](auto){
+        std::this_thread::sleep_for(50s);
+    });
 
     if(!file_exists("settings.json")) {
         std::cout<<"Failed to open settings.json\n";
@@ -43,7 +51,14 @@ int main(int argc, char *argv[]) {
             sleep(30s);
         }
     });
-    sched.signal_handle(SIGINT, [&] { std::cout<<"Exiting...\n"; sched.terminate(); });
+
+    sched.signal_handle(SIGINT, [&] {
+        std::cout<<"Exiting...\n";
+        tp.clear_queue();
+        tp.resize(0);
+        sched.terminate(); 
+    });
+
     Thread main_thread(sched, "main thread", [&] {
         proxies_loaded.wait();
 
@@ -66,14 +81,13 @@ int main(int argc, char *argv[]) {
                 std::cout<<arb.cycle2string(c)<<'\n';
             }
 
-            std::cout<<"done\n";
             sleep(5s);
         }
-
     });
 
     try {
         sched.run();
+        std::cout<<"done\n";
     } catch(const std::runtime_error& e) {
         std::cout<<"Error: "<<e.what()<<std::endl;
         return -1;
