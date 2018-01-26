@@ -28,29 +28,6 @@ typedef CEX EXCHANGE;
 
 int main(int argc, char *argv[]) {
     Scheduler sched;
-    Barrier proxies_loaded;
-    thread_pool tp(std::thread::hardware_concurrency());
-    tp.push([](auto) {
-        std::this_thread::sleep_for(50s);
-    });
-
-    if(!file_exists("settings.json")) {
-        std::cout << "Failed to open settings.json\n";
-        return -1;
-    }
-
-    auto settings = parse_file("settings.json");
-    rest_api<EXCHANGE> api(settings["proxy_flood"].GetBool());
-    arbitrage arb(EXCHANGE::fee);
-    Thread proxy_thread(sched, "update proxies", [&] {
-        while(true)
-        {
-            api.load_proxies();
-            std::cout << "Loading proxies is done ok.\n";
-            proxies_loaded.open();
-            sleep(30s);
-        }
-    });
     sched.signal_handle(SIGINT, [&] {
         std::cout << "Exiting...\n";
         tp.clear_queue();
@@ -58,73 +35,8 @@ int main(int argc, char *argv[]) {
         sched.terminate();
     });
     Thread main_thread(sched, "main thread", [&] {
-        proxies_loaded.wait();
-        std::unordered_map<std::string, size_t> hashes;
-        std::vector<std::string> slow_pool, fast_pool;
-        std::cout << "getting all pairs\n";
-        fast_pool = api.get_all_pairs();
-        api.get_ob(fast_pool, arb);
-        std::cout << "saving hashes\n";
-
-        for(const auto& p : fast_pool) {
-            hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;
-        }
-        sleep(5s);
-        fast_pool = api.get_all_pairs();
-        api.get_ob(fast_pool, arb);
-        std::cout << "partitionize\n";
-        auto sp_begin = std::partition(fast_pool.begin(), fast_pool.end(), [&](const auto & p) {
-            return hashes[p] != arb(as_pair(p, EXCHANGE::delimeter)).hash;
-        });
-        std::cout << "movin\n";
-        std::move(sp_begin, fast_pool.end(), std::back_inserter(slow_pool));
-        std::cout << "erasin\n";
-        fast_pool.erase(sp_begin, fast_pool.end());
-
-        elle::With<Scope>() << [&](Scope & scope) {
-            scope.run_background("slow_pool", [&] {
-                while(true) {
-                    api.get_ob(slow_pool, arb);
-                    auto fp_begin = std::partition(slow_pool.begin(), slow_pool.end(), [&](const auto & p) {
-                        bool x = hashes[p] == arb(as_pair(p, EXCHANGE::delimeter)).hash;
-                        hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;
-                        return x;
-                    });
-                    std::move(fp_begin, slow_pool.end(), std::back_inserter(fast_pool));
-                    slow_pool.erase(fp_begin, slow_pool.end());
-                    sleep(10s);
-                }
-            });
-            scope.run_background("fast_pool", [&] {
-                while(true) {
-                    api.get_ob(fast_pool, arb);
-                    auto sp_begin = std::partition(fast_pool.begin(), fast_pool.end(), [&](const auto & p) {
-                        bool x = hashes[p] != arb(as_pair(p, EXCHANGE::delimeter)).hash;
-                        hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;
-                        return x;
-                    });
-                    std::move(sp_begin, fast_pool.end(), std::back_inserter(slow_pool));
-                    fast_pool.erase(sp_begin, fast_pool.end());
-                    sleep(2s);
-                }
-            });
-            scope.run_background("print_all", [&] {
-                while(true) {
-                    std::cout << "slow_pool:\n";
-
-                    for(const auto& p : slow_pool) {
-                        std::cout << p << ": " << arb(as_pair(p, EXCHANGE::delimeter)).hash << ' ' << hashes[p] << '\n';
-                    }
-
-                    std::cout << "fast_pool:\n";
-
-                    for(const auto& p : fast_pool) {
-                        std::cout << p << ": " << arb(as_pair(p, EXCHANGE::delimeter)).hash << ' ' << hashes[p] << '\n';
-                    }
-
-                    sleep(7s);
-                }
-            });
+        elle::With<Scope>() << [&] (Scope& scope) {
+            scope.run_background("", []{});
             scope.wait();
         };
     });
