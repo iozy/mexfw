@@ -30,8 +30,6 @@ int main(int argc, char *argv[]) {
     Scheduler sched;
     sched.signal_handle(SIGINT, [&] {
         std::cout << "Exiting...\n";
-        tp.clear_queue();
-        tp.resize(0);
         sched.terminate();
     });
     Thread main_thread(sched, "main thread", [&] {
