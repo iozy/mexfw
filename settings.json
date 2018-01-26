@@ -6,5 +6,6 @@
     "blacklist": [ "GHS" ],
     "proxy_test":   true,
     "proxy_flood": true,
+    "flooders": 10,
     "debug": true
 }

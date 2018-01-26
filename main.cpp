@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
         while(true)
         {
             api.load_proxies();
-            std::cout << "Loading proxies is done ok.\n";
+            //std::cout << "Loading proxies is done ok.\n";
             proxies_loaded.open();
             sleep(30s);
         }
@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
         std::cout << "erasin\n";
         fast_pool.erase(sp_begin, fast_pool.end());
 
-        elle::With<Scope>() << [&](Scope & scope) {
+        elle::With<Scope>() << [&](Scope& scope) {
             scope.run_background("slow_pool", [&] {
                 while(true) {
                     api.get_ob(slow_pool, arb);
@@ -110,16 +110,20 @@ int main(int argc, char *argv[]) {
             });
             scope.run_background("print_all", [&] {
                 while(true) {
-                    std::cout << "slow_pool:\n";
+                    std::cout << "slow_pool: " << slow_pool.size() << '\t';
+                    //for(const auto& p : slow_pool) {
+                    //    std::cout << p << ": " << arb(as_pair(p, EXCHANGE::delimeter)).hash << ' ' << hashes[p] << '\n';
+                    //}
+                    std::cout << "fast_pool: " << fast_pool.size() << '\t';
+                    //for(const auto& p : fast_pool) {
+                    //    std::cout << p << ": " << arb(as_pair(p, EXCHANGE::delimeter)).hash << ' ' << hashes[p] << '\n';
+                    //}
+                    std::cout << "S: " << fast_pool.size() + slow_pool.size() << '\n';
+                    auto cycles = arb.find_cycles();
 
-                    for(const auto& p : slow_pool) {
-                        std::cout << p << ": " << arb(as_pair(p, EXCHANGE::delimeter)).hash << ' ' << hashes[p] << '\n';
-                    }
-
-                    std::cout << "fast_pool:\n";
-
-                    for(const auto& p : fast_pool) {
-                        std::cout << p << ": " << arb(as_pair(p, EXCHANGE::delimeter)).hash << ' ' << hashes[p] << '\n';
+                    if(cycles.size() > 0) {
+                        for(auto c : cycles)
+                            std::cout << cycle2string(c) << '\n';
                     }
 
                     sleep(7s);
