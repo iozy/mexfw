@@ -33,8 +33,21 @@ int main(int argc, char *argv[]) {
         sched.terminate();
     });
     Thread main_thread(sched, "main thread", [&] {
-        elle::With<Scope>() << [&] (Scope& scope) {
-            scope.run_background("", []{});
+        elle::With<Scope>() << [&] (Scope & scope) {
+            scope.run_background("test_proxy", [&] {
+                rest_api<TEST_PROXY> api;
+                api.load_proxies();
+
+                for(size_t i = 0; i < 3; ++i) {
+                    api.test_proxies("https://cex.io/api/currency_limits");
+                    sleep(5s);
+                }
+                api.print_proxy_stats();
+                api.filter_proxies();
+                std::cout<<"After filtering\n";
+                api.print_proxy_stats();
+                api.save_proxies();
+            });
             scope.wait();
         };
     });

@@ -67,14 +67,10 @@ public:
     }
 
     void filter_proxies() {
-        decltype(proxies) good_proxies;
-
-        for(const auto& p : proxies) {
-            if(ok_proxy_requests[p.host()] > 0)
-                good_proxies.push_back(p);
-        }
-
-        proxies = good_proxies;
+        auto badp = std::partition(proxies.begin(), proxies.end(), [this](auto p) {
+            return this->ok_proxy_requests[p.host()] > 0;
+        });
+        proxies.erase(badp, proxies.end());
     }
 
     void print_proxy_stats() {
@@ -87,7 +83,7 @@ public:
             }
         }
 
-        std::cout << "Good proxies: " << ok_proxies_sz << " out of " << proxy_requests.size() << '\n';
+        std::cout << "Good proxies: " << ok_proxies_sz << " out of " << proxies.size() << '\n';
     }
 
 };
