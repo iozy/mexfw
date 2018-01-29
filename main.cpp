@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
         elle::With<Scope>() << [&](Scope& scope) {
             scope.run_background("slow_pool", [&] {
                 while(true) {
-                    api.get_ob(slow_pool, arb);
+                    api.get_ob(slow_pool, arb, true);
                     auto fp_begin = std::partition(slow_pool.begin(), slow_pool.end(), [&](const auto & p) {
                         bool x = hashes[p] == arb(as_pair(p, EXCHANGE::delimeter)).hash;
                         hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
             });
             scope.run_background("fast_pool", [&] {
                 while(true) {
-                    api.get_ob(fast_pool, arb);
+                    api.get_ob(fast_pool, arb, true);
                     auto sp_begin = std::partition(fast_pool.begin(), fast_pool.end(), [&](const auto & p) {
                         bool x = hashes[p] != arb(as_pair(p, EXCHANGE::delimeter)).hash;
                         hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;
@@ -122,8 +122,11 @@ int main(int argc, char *argv[]) {
                     auto cycles = arb.find_cycles();
 
                     if(cycles.size() > 0) {
-                        for(auto c : cycles)
+                        for(auto c : cycles) {
+                            //std::set<decltype(c)::value_type> cs(c.begin(), c.end());
+                            //if(cs.size() == c.size())
                             std::cout << cycle2string(c) << '\n';
+                        }
                     }
 
                     sleep(7s);

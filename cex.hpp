@@ -49,7 +49,7 @@ public:
         return all_pairs;
     }
 
-    void get_ob(const std::vector<std::string>& pairs, arbtools::arbitrage& arb) {
+    void get_ob(const std::vector<std::string>& pairs, arbtools::arbitrage& arb, bool best = false) {
         produce_consume(pairs, [&, this](auto p) {
             boost::replace_all(p, ":", "/");
             auto url = "https://cex.io/api/order_book/" + p;
@@ -83,7 +83,7 @@ public:
                     arb.pair(c2, c1).ob[json_to_str(ask.GetArray()[0])] += ask.GetArray()[1].GetDouble();
                 }
 
-                arb.recalc_rates(c2 + "-" + c1);
+                arb.recalc_rates(c2 + "-" + c1, best);
             }
 
             if(doms.HasMember("bids")) {
@@ -94,7 +94,7 @@ public:
                     arb.pair(c1, c2).ob[json_to_str(bid.GetArray()[0])] += bid.GetArray()[1].GetDouble();
                 }
 
-                arb.recalc_rates(c1 + "-" + c2);
+                arb.recalc_rates(c1 + "-" + c2, best);
             }
         }, 15);
     }
