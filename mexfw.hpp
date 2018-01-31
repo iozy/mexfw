@@ -4,6 +4,7 @@
 
 #ifndef MEXFW_H
 #define MEXFW_H
+#include <boost/circular_buffer.hpp>
 #include <elle/reactor/Scope.hh>
 #include <elle/reactor/Channel.hh>
 #include <elle/reactor/Barrier.hh>
@@ -28,7 +29,7 @@ template <typename EXCHANGE>
 class rest_api_base {
 protected:
     // Common fields and vars
-    std::unordered_map<std::string, std::string> apikeys;
+    boost::circular_buffer<std::pair<std::string, std::string>> apikeys;
     std::unordered_map<std::string, unsigned long int> nonces;
     std::unordered_map<std::string, std::string> cookies;
     std::vector<network::Proxy> proxies;
@@ -39,10 +40,29 @@ protected:
 public:
     rest_api_base(): use_proxy(true) {}
     // API keys and nonces
-    //void load_keys(const auto& filename) {}
+    void load_keys(const std::string& filename = "keys.json") {
+        apikeys.clear();
+
+        if(!file_exists(filename)) {
+            return;
+        }
+
+        auto apikeys_json = parse_file(filename);
+
+        apikeys.set_capacity(apikeys_json.Size());
+        for(const auto& entry : apikeys_json.GetArray()) {            
+            apikeys.push_back(std::make_pair(entry.GetObject()["key"].GetString(), entry.GetObject()["secret"].GetString()));
+        }
+    }
     //void add_key(){}
     //void rm_key(){}
-    //std::string get_priv_key(const auto& key, bool switch = true) {}
+    auto get_keypair(bool switch_ = true) {
+        if(switch_) {
+            apikeys.rotate(std::next(apikeys.begin(), 1));
+        }
+
+        return *apikeys.begin();
+    }
 
 
     // Proxy tools
@@ -136,7 +156,6 @@ protected:
                         try {
                             result = worker();
                             work_done.open();
-
                             break;
                         } catch(...) {
                             if(failures[i]++ < n_fail - 1) {
@@ -163,7 +182,6 @@ protected:
                 chan.clear();
                 scope.terminate_now();
             });
-
             scope.wait();
         };
         return result;

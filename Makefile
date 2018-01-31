@@ -15,7 +15,7 @@ CXX           = g++
 DEFINES       = -DRAPIDJSON_SSE2 -DRAPIDJSON_NEON
 CFLAGS        = -m64 -pipe -O2 -D_REENTRANT -Wall -W -fPIC $(DEFINES)
 CXXFLAGS      = -m64 -pipe -O2 -D_REENTRANT -std=c++1y -Wall -W -fPIC $(DEFINES)
-INCPATH       = -I. -I. -Ithirdparty/elle/src -Ithirdparty/elle/_build/linux64/boost/1.60.0/include -Ithirdparty/rapidjson/include -Ithirdparty/CTPL -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64
+INCPATH       = -I. -I. -Ithirdparty/elle/src -Ithirdparty/elle/_build/linux64/boost/1.60.0/include -Ithirdparty/elle/_build/linux64/openssl/include -Ithirdparty/rapidjson/include -Ithirdparty/CTPL -I/usr/lib/x86_64-linux-gnu/qt5/mkspecs/linux-g++-64
 QMAKE         = /usr/lib/x86_64-linux-gnu/qt5/bin/qmake
 DEL_FILE      = rm -f
 CHK_DIR_EXISTS= test -d
@@ -36,7 +36,7 @@ DISTNAME      = mexfw1.0.0
 DISTDIR = /home/andee/workspace/mexfw/.tmp/mexfw1.0.0
 LINK          = g++
 LFLAGS        = -m64 -Wl,-O1
-LIBS          = $(SUBLIBS) ./thirdparty/elle/_build/linux64/lib/libelle_core.so ./thirdparty/elle/_build/linux64/lib/libelle_reactor.so ./thirdparty/elle/_build/linux64/lib/libelle_protocol.so ./thirdparty/elle/_build/linux64/lib/libfuse.so.2 ./thirdparty/elle/_build/linux64/lib/libboost_* -lpthread 
+LIBS          = $(SUBLIBS) ./thirdparty/elle/_build/linux64/lib/libelle_core.so ./thirdparty/elle/_build/linux64/lib/libelle_reactor.so ./thirdparty/elle/_build/linux64/lib/libelle_protocol.so ./thirdparty/elle/_build/linux64/lib/libelle_cryptography.so ./thirdparty/elle/_build/linux64/lib/libcurl.so.4 ./thirdparty/elle/_build/linux64/lib/libssl.so.1.0.0 ./thirdparty/elle/_build/linux64/lib/libcrypto.so.1.0.0 ./thirdparty/elle/_build/linux64/lib/libfuse.so.2 ./thirdparty/elle/_build/linux64/lib/libboost_* -lpthread 
 AR            = ar cqs
 RANLIB        = 
 SED           = sed
@@ -2309,6 +2309,8 @@ main.o: main.cpp thirdparty/elle/src/iostream \
 		thirdparty/elle/src/elle/das/model.hh \
 		thirdparty/elle/src/elle/das/fwd.hh \
 		thirdparty/elle/src/elle/reactor/Thread.hxx \
+		thirdparty/elle/src/elle/reactor/Channel.hh \
+		thirdparty/elle/src/elle/reactor/Channel.hxx \
 		thirdparty/elle/src/elle/reactor/http/Request.hh \
 		thirdparty/elle/src/elle/reactor/Operation.hh \
 		thirdparty/elle/src/elle/reactor/http/Method.hh \
@@ -2316,18 +2318,6 @@ main.o: main.cpp thirdparty/elle/src/iostream \
 		thirdparty/elle/src/elle/reactor/http/Version.hh \
 		thirdparty/elle/src/elle/reactor/http/fwd.hh \
 		thirdparty/elle/src/elle/reactor/network/proxy.hh \
-		exchanges.hpp \
-		mexfw.hpp \
-		thirdparty/elle/src/elle/reactor/Scope.hh \
-		thirdparty/elle/src/elle/reactor/Channel.hh \
-		thirdparty/elle/src/elle/reactor/Channel.hxx \
-		thirdparty/rapidjson/include/rapidjson/ostreamwrapper.h \
-		thirdparty/rapidjson/include/rapidjson/writer.h \
-		thirdparty/rapidjson/include/rapidjson/internal/dtoa.h \
-		thirdparty/rapidjson/include/rapidjson/internal/itoa.h \
-		thirdparty/rapidjson/include/rapidjson/stringbuffer.h \
-		goodies.hpp \
-		cex.hpp \
 		thirdparty/CTPL/ctpl.h \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/queue.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/detail/atomic.hpp \
@@ -2339,13 +2329,53 @@ main.o: main.cpp thirdparty/elle/src/iostream \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/detail/prefix.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/detail/tagged_ptr_dcas.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/detail/tagged_ptr_ptrcompression.hpp \
-		arbitrage.hpp \
+		exchanges.hpp \
+		mexfw.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/circular_buffer.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/circular_buffer_fwd.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/circular_buffer/debug.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/circular_buffer/details.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/circular_buffer/base.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/circular_buffer/space_optimized.hpp \
+		thirdparty/elle/src/elle/reactor/Scope.hh \
+		thirdparty/rapidjson/include/rapidjson/ostreamwrapper.h \
+		thirdparty/rapidjson/include/rapidjson/writer.h \
+		thirdparty/rapidjson/include/rapidjson/internal/dtoa.h \
+		thirdparty/rapidjson/include/rapidjson/internal/itoa.h \
+		thirdparty/rapidjson/include/rapidjson/stringbuffer.h \
+		goodies.hpp \
+		cex.hpp \
+		thirdparty/elle/src/elle/cryptography/hmac.hh \
+		thirdparty/elle/src/elle/cryptography/fwd.hh \
+		thirdparty/elle/src/elle/cryptography/openssl.hh \
+		thirdparty/elle/src/elle/cryptography/rsa/fwd.hh \
+		thirdparty/elle/src/elle/cryptography/dsa/fwd.hh \
+		thirdparty/elle/src/elle/cryptography/dh/fwd.hh \
+		thirdparty/elle/src/elle/cryptography/Oneway.hh \
+		thirdparty/elle/src/elle/cryptography/hmac.hxx \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/evp.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/opensslconf.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/ossl_typ.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/e_os2.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/symhacks.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/bio.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/crypto.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/stack.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/safestack.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/opensslv.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/ebcdic.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/objects.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/obj_mac.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/asn1.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/bn.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/err.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/lhash.h \
+		thirdparty/elle/_build/linux64/openssl/include/openssl/hmac.h \
+		thirdparty/elle/src/elle/cryptography/raw.hh \
+		thirdparty/elle/src/elle/cryptography/Cipher.hh \
+		thirdparty/elle/src/elle/cryptography/finally.hh \
+		thirdparty/elle/src/elle/format/hexadecimal.hh \
+		arbitrage.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/graph/adjacency_list.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/unordered_set.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/unordered/unordered_set.hpp \

@@ -9,6 +9,7 @@ TARGET = mexfw
 INCLUDEPATH += . \
                ./thirdparty/elle/src \
                ./thirdparty/elle/_build/linux64/boost/1.60.0/include \
+               ./thirdparty/elle/_build/linux64/openssl/include \
                ./thirdparty/rapidjson/include \
                ./thirdparty/CTPL \
 
@@ -17,6 +18,10 @@ DEFINES += RAPIDJSON_SSE2 RAPIDJSON_NEON
 LIBS += ./thirdparty/elle/_build/linux64/lib/libelle_core.so \
         ./thirdparty/elle/_build/linux64/lib/libelle_reactor.so \
         ./thirdparty/elle/_build/linux64/lib/libelle_protocol.so \
+        ./thirdparty/elle/_build/linux64/lib/libelle_cryptography.so \
+        ./thirdparty/elle/_build/linux64/lib/libcurl.so.4 \
+        ./thirdparty/elle/_build/linux64/lib/libssl.so.1.0.0 \ 
+        ./thirdparty/elle/_build/linux64/lib/libcrypto.so.1.0.0 \
         ./thirdparty/elle/_build/linux64/lib/libfuse.so.2
 LIBS += ./thirdparty/elle/_build/linux64/lib/libboost_*
 

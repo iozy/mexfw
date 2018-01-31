@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     }
 
     auto settings = parse_file("settings.json");
-    rest_api<EXCHANGE> api(settings["proxy_flood"].GetBool());
+    rest_api<EXCHANGE> api("up104099398", settings["proxy_flood"].GetBool());
     arbitrage arb(EXCHANGE::fee);
     Thread proxy_thread(sched, "update proxies", [&] {
         while(true)
@@ -58,9 +58,17 @@ int main(int argc, char *argv[]) {
         sched.terminate();
     });
     Thread main_thread(sched, "main thread", [&] {
+        api.load_keys();
         proxies_loaded.wait();
         std::unordered_map<std::string, size_t> hashes;
         std::vector<std::string> slow_pool, fast_pool;
+        std::unordered_map<std::string, double> bal;
+        api.update_balance(bal);
+        for(auto b: bal) {
+            std::cout<<b.first<<"="<<b.second<<" ";
+        }
+        std::cout<<'\n';
+        return;
         std::cout << "getting all pairs\n";
         fast_pool = api.get_all_pairs();
         api.get_ob(fast_pool, arb);
@@ -84,7 +92,7 @@ int main(int argc, char *argv[]) {
         elle::With<Scope>() << [&](Scope& scope) {
             scope.run_background("slow_pool", [&] {
                 while(true) {
-                    api.get_ob(slow_pool, arb, true);
+                    api.get_ob(slow_pool, arb);
                     auto fp_begin = std::partition(slow_pool.begin(), slow_pool.end(), [&](const auto & p) {
                         bool x = hashes[p] == arb(as_pair(p, EXCHANGE::delimeter)).hash;
                         hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;
@@ -97,7 +105,7 @@ int main(int argc, char *argv[]) {
             });
             scope.run_background("fast_pool", [&] {
                 while(true) {
-                    api.get_ob(fast_pool, arb, true);
+                    api.get_ob(fast_pool, arb);
                     auto sp_begin = std::partition(fast_pool.begin(), fast_pool.end(), [&](const auto & p) {
                         bool x = hashes[p] != arb(as_pair(p, EXCHANGE::delimeter)).hash;
                         hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;

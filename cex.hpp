@@ -9,6 +9,8 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <elle/reactor/http/Request.hh>
+#include <elle/cryptography/hmac.hh>
+#include <elle/format/hexadecimal.hh>
 #include <elle/Duration.hh>
 #include <ctpl.h>
 #include <stdexcept>
@@ -19,14 +21,48 @@
 namespace mexfw {
 using namespace utils;
 using namespace elle::reactor;
+using namespace elle::cryptography;
+using namespace elle::format::hexadecimal;
 using namespace elle::chrono_literals;
 
 template<>
 class rest_api<CEX>: public rest_api_base<CEX> {
+    std::string username;
     ctpl::thread_pool tp;
     bool proxy_flood;
 public:
-    rest_api(bool proxy_flood = true): tp(std::thread::hardware_concurrency()), proxy_flood(proxy_flood) {}
+    rest_api(const std::string& username = "", bool proxy_flood = true): tp(std::thread::hardware_concurrency()), proxy_flood(proxy_flood), username(username) {}
+    void update_balance(auto& balance) {
+        produce_consume({{}}, [&, this](auto) {
+            http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
+            http::Request r("https://cex.io/api/balance/", http::Method::POST, "application/x-www-form-urlencoded", conf);
+            auto key_pair = this->get_keypair();
+            size_t nonce = std::time(0);
+            auto signature = std::to_string(nonce) + username + key_pair.first;
+            signature = encode(hmac::sign(signature, key_pair.second, Oneway::sha256).string());
+            boost::algorithm::to_upper(signature);
+            std::string body = "key=" + key_pair.first + "&signature=" + signature + "&nonce=" + std::to_string(nonce);
+            r << body;
+            r.finalize();
+
+            if(r.status() != http::StatusCode::OK) {
+                throw std::runtime_error("status code is not ok");
+            }
+
+            auto resp = parse_str(r.response().string());
+            
+            balance.clear();
+            for(const auto& entry : resp.GetObject()) {
+                std::string k = entry.name.GetString();
+
+                if(k == "timestamp" || k == "username") continue;
+
+                double val = std::stod(entry.value.GetObject()["available"].GetString());
+
+                if(val != 0.) balance[k] = val;
+            }
+        });
+    }
     auto get_all_pairs() {
         std::vector<std::string> all_pairs;
         produce_consume({{}}, [&, this](auto) {
