@@ -33,14 +33,19 @@ public:
         produce_consume(work, [this](auto _url) {
             auto proxy = this->get_proxy();
             http::Request::Configuration conf(5s, {}, http::Version::v11, true, proxy);
-            http::Request r(_url, http::Method::GET, "application/json", conf);
+            http::Request r(_url, http::Method::GET, "application/x-www-form-urlencoded", conf);
             r.finalize();
 
             if(r.status() != http::StatusCode::OK)
                 throw std::runtime_error("status code is not ok");
 
-            auto resp = parse_str(r.response().string());
-            this->ok_proxy_requests[proxy.host()]++;
+            auto answer = r.response().string();
+            auto resp = parse_str(answer);
+
+            if(!resp.HasParseError())
+                this->ok_proxy_requests[proxy.host()]++;
+            else
+                std::cout << answer << '\n';
         }, 1, true);
     }
 
@@ -55,12 +60,12 @@ public:
             if(r.status() != http::StatusCode::OK)
                 throw std::runtime_error("status code is not ok");
 
-            std::cout<<"go via "<<proxy<<'\n';
+            std::cout << "go via " << proxy << '\n';
             std::string response = r.response().string();
-            std::cout<<"received\n";
+            std::cout << "received\n";
             auto resp = parse_str(response);
             this->ok_proxy_requests[proxy.host()]++;
-            std::cout<<"parsed"<<'\n';
+            std::cout << "parsed" << '\n';
             return proxy;
         }, 10);
         std::cout << "And the winner is " << who << '\n';

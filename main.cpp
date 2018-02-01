@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
                 api.load_proxies();
 
                 for(size_t i = 0; i < 3; ++i) {
-                    api.test_proxies("https://cex.io/api/currency_limits");
+                    api.test_proxies("https://cex.io/api/balance/");
                     sleep(5s);
                 }
                 api.print_proxy_stats();

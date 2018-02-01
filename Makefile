@@ -2309,6 +2309,8 @@ main.o: main.cpp thirdparty/elle/src/iostream \
 		thirdparty/elle/src/elle/das/model.hh \
 		thirdparty/elle/src/elle/das/fwd.hh \
 		thirdparty/elle/src/elle/reactor/Thread.hxx \
+		thirdparty/elle/src/elle/reactor/Channel.hh \
+		thirdparty/elle/src/elle/reactor/Channel.hxx \
 		thirdparty/elle/src/elle/reactor/http/Request.hh \
 		thirdparty/elle/src/elle/reactor/Operation.hh \
 		thirdparty/elle/src/elle/reactor/http/Method.hh \
@@ -2316,18 +2318,6 @@ main.o: main.cpp thirdparty/elle/src/iostream \
 		thirdparty/elle/src/elle/reactor/http/Version.hh \
 		thirdparty/elle/src/elle/reactor/http/fwd.hh \
 		thirdparty/elle/src/elle/reactor/network/proxy.hh \
-		exchanges.hpp \
-		mexfw.hpp \
-		thirdparty/elle/src/elle/reactor/Scope.hh \
-		thirdparty/elle/src/elle/reactor/Channel.hh \
-		thirdparty/elle/src/elle/reactor/Channel.hxx \
-		thirdparty/rapidjson/include/rapidjson/ostreamwrapper.h \
-		thirdparty/rapidjson/include/rapidjson/writer.h \
-		thirdparty/rapidjson/include/rapidjson/internal/dtoa.h \
-		thirdparty/rapidjson/include/rapidjson/internal/itoa.h \
-		thirdparty/rapidjson/include/rapidjson/stringbuffer.h \
-		goodies.hpp \
-		cex.hpp \
 		thirdparty/CTPL/ctpl.h \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/queue.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/detail/atomic.hpp \
@@ -2339,6 +2329,16 @@ main.o: main.cpp thirdparty/elle/src/iostream \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/detail/prefix.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/detail/tagged_ptr_dcas.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/lockfree/detail/tagged_ptr_ptrcompression.hpp \
+		exchanges.hpp \
+		mexfw.hpp \
+		thirdparty/elle/src/elle/reactor/Scope.hh \
+		thirdparty/rapidjson/include/rapidjson/ostreamwrapper.h \
+		thirdparty/rapidjson/include/rapidjson/writer.h \
+		thirdparty/rapidjson/include/rapidjson/internal/dtoa.h \
+		thirdparty/rapidjson/include/rapidjson/internal/itoa.h \
+		thirdparty/rapidjson/include/rapidjson/stringbuffer.h \
+		goodies.hpp \
+		cex.hpp \
 		arbitrage.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/circular_buffer.hpp \
 		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/circular_buffer_fwd.hpp \
