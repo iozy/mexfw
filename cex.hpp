@@ -32,26 +32,29 @@ class rest_api<CEX>: public rest_api_base<CEX> {
     bool proxy_flood;
 public:
     rest_api(const std::string& username = "", bool proxy_flood = true): tp(std::thread::hardware_concurrency()), proxy_flood(proxy_flood), username(username) {}
+
     void update_balance(auto& balance) {
         produce_consume({{}}, [&, this](auto) {
-            http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
-            http::Request r("https://cex.io/api/balance/", http::Method::POST, "application/x-www-form-urlencoded", conf);
-            auto key_pair = this->get_keypair();
-            size_t nonce = std::time(0);
-            auto signature = std::to_string(nonce) + username + key_pair.first;
-            signature = encode(hmac::sign(signature, key_pair.second, Oneway::sha256).string());
-            boost::algorithm::to_upper(signature);
-            std::string body = "key=" + key_pair.first + "&signature=" + signature + "&nonce=" + std::to_string(nonce);
-            r << body;
-            r.finalize();
+            std::string response = this->first_wins([&, this] {
+                http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
+                http::Request r("https://cex.io/api/balance/", http::Method::POST, "application/x-www-form-urlencoded", conf);
+                auto key_pair = this->get_keypair();
+                std::string nonce = this->get_nonce(key_pair.first);
+                std::string signature = nonce + username + key_pair.first;
+                signature = encode(hmac::sign(signature, key_pair.second, Oneway::sha256).string());
+                boost::algorithm::to_upper(signature);
+                std::string body = "key=" + key_pair.first + "&signature=" + signature + "&nonce=" + nonce;
+                r << body;
+                r.finalize();
 
-            if(r.status() != http::StatusCode::OK) {
-                throw std::runtime_error("status code is not ok");
-            }
-
-            auto resp = parse_str(r.response().string());
-            
+                if(r.status() != http::StatusCode::OK) {
+                    throw std::runtime_error("status code is not ok");
+                }
+                return r.response().string();
+            }, proxy_flood ? 10 : 1);
+            auto resp = parse_str(response);
             balance.clear();
+
             for(const auto& entry : resp.GetObject()) {
                 std::string k = entry.name.GetString();
 

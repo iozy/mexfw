@@ -59,16 +59,11 @@ int main(int argc, char *argv[]) {
     });
     Thread main_thread(sched, "main thread", [&] {
         api.load_keys();
+        api.load_nonces();
         proxies_loaded.wait();
         std::unordered_map<std::string, size_t> hashes;
         std::vector<std::string> slow_pool, fast_pool;
         std::unordered_map<std::string, double> bal;
-        api.update_balance(bal);
-        for(auto b: bal) {
-            std::cout<<b.first<<"="<<b.second<<" ";
-        }
-        std::cout<<'\n';
-        return;
         std::cout << "getting all pairs\n";
         fast_pool = api.get_all_pairs();
         api.get_ob(fast_pool, arb);
@@ -136,6 +131,12 @@ int main(int argc, char *argv[]) {
                             std::cout << cycle2string(c) << '\n';
                         }
                     }
+                    api.update_balance(bal);
+                    for(auto b: bal) {
+                        std::cout<<b.first<<"="<<b.second<<" ";
+                    }
+                    std::cout<<'\n';
+                    api.save_nonces();
 
                     sleep(7s);
                 }
