@@ -58,6 +58,8 @@ int main(int argc, char *argv[]) {
         sched.terminate();
     });
     Thread main_thread(sched, "main thread", [&] {
+        std::cout<<api.trade("btc:usd","","")<<'\t'<<api.trade("btc-usd", "", "")<<'\n';
+        return;
         api.load_keys();
         proxies_loaded.wait();
         std::unordered_map<std::string, size_t> hashes;
