@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
                         for(auto c : cycles) {
                             //std::set<decltype(c)::value_type> cs(c.begin(), c.end());
                             //if(cs.size() == c.size())
-                            std::cout << cycle2string(c) << '\n';
+                            std::cout << cycle2string(c) << " gain="<<gain(arb, c)<<'\n';
                         }
                     }
                     api.update_balance(bal);

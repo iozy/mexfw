@@ -241,10 +241,8 @@ protected:
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
                     work_ready.wait();
 
-                    while(!chan.empty()) {
+                    while(!chan.empty() && !finish) {
                         try {
-                            if(finish) break;
-
                             result = worker();
                             failures[i] = 0;
 
