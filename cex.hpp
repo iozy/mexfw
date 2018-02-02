@@ -51,8 +51,13 @@ public:
                     throw std::runtime_error("status code is not ok");
                 }
                 return r.response().string();
-            }, proxy_flood ? 10 : 1);
+            }, proxy_flood ? 4 : 1);
             auto resp = parse_str(response);
+            if(resp.HasParseError()) {
+                std::cout<<"Failed to parse: "<<response<<'\n';
+                return;
+            }
+
             balance.clear();
 
             for(const auto& entry : resp.GetObject()) {
@@ -79,7 +84,15 @@ public:
                 }
                 return r.response().string();
             }, proxy_flood ? 10 : 1);
+            //std::cout<<response<<'\n';
             auto resp = parse_str(response);
+            if(resp.HasParseError()) {
+                std::cout<<"Failed to parse: "<<response<<'\n';
+                return;
+            }
+            if(resp.HasMember("error")) {
+                throw std::runtime_error(resp["error"].GetString());
+            }
 
             for(const auto& k : resp["data"].GetObject()["pairs"].GetArray()) {
                 all_pairs.push_back(std::string(k.GetObject()["symbol1"].GetString()) + CEX::delimeter + k.GetObject()["symbol2"].GetString());
@@ -111,6 +124,10 @@ public:
                 sleep(100ms);
 
             Document doms = ft.get();
+            if(doms.HasParseError()) {
+                std::cout<<"Failed to parse: "<<response<<'\n';
+                return;
+            }
             std::string c1, c2;
             std::tie(c1, c2) = arb.as_pair(doms["pair"].GetString(), ":");
 
