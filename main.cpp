@@ -112,6 +112,7 @@ int main(int argc, char *argv[]) {
                 }
             });
             scope.run_background("print_all", [&] {
+                bool traded = false;
                 while(true) {
                     std::cout << "slow_pool: " << slow_pool.size() << '\t';
                     //for(const auto& p : slow_pool) {
@@ -126,9 +127,7 @@ int main(int argc, char *argv[]) {
 
                     if(cycles.size() > 0) {
                         for(auto c : cycles) {
-                            //std::set<decltype(c)::value_type> cs(c.begin(), c.end());
-                            //if(cs.size() == c.size())
-                            std::cout << cycle2string(c) << " gain="<<gain(arb, c)<<'\n';
+                            std::cout << cycle2string(c) << "\tgain="<<gain(arb, c)<<'\n';
                         }
                     }
                     api.update_balance(bal);
@@ -136,6 +135,20 @@ int main(int argc, char *argv[]) {
                         std::cout<<b.first<<"="<<b.second<<" ";
                     }
                     std::cout<<'\n';
+                    if(!traded) {
+                        std::cout<<"trying to trade\n";
+                        auto x = arb.ob("USD-BTG", 10);
+                        std::string rate = x.first, amt = "0.07";
+                        //std::cout<<x<<'\n';
+                        std::cout<<"Trade id="<<api.trade(arb, "BTG-USD", rate, amt)<<'\n';
+                        scope.run_background("canceling", [&]{
+                            sleep(3s);
+                            std::cout<<"canceling all\n";
+                            api.cancel_all();
+                            scope.run_background("exiting", [&]{ sleep(10s); sched.terminate(); });
+                        });
+                        traded = true;
+                    }
                     api.save_nonces();
 
                     sleep(7s);

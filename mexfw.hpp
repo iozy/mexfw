@@ -35,6 +35,7 @@ protected:
     std::vector<network::Proxy> proxies;
     std::unordered_map<std::string, size_t> proxy_requests;
     std::unordered_map<std::string, size_t> ok_proxy_requests;
+    std::vector<std::string> active_orders;
     bool use_proxy;
 
 public:
