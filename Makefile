@@ -2345,6 +2345,25 @@ main.o: main.cpp thirdparty/elle/src/iostream \
 		thirdparty/rapidjson/include/rapidjson/stringbuffer.h \
 		goodies.hpp \
 		cex.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/std_containers_traits.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/std/string_traits.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/std/list_traits.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/std/slist_traits.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/trim.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/detail/trim.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/classification.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/detail/classification.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/predicate_facade.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/predicate.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/find.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/detail/predicate.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/split.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/iter_find.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/find_iterator.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/detail/find_iterator.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/algorithm/string/join.hpp \
+		thirdparty/elle/_build/linux64/boost/1.60.0/include/boost/range/algorithm/replace_if.hpp \
 		thirdparty/elle/src/elle/cryptography/hmac.hh \
 		thirdparty/elle/src/elle/cryptography/fwd.hh \
 		thirdparty/elle/src/elle/cryptography/openssl.hh \
