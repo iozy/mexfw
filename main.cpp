@@ -29,10 +29,7 @@ typedef CEX EXCHANGE;
 int main(int argc, char *argv[]) {
     Scheduler sched;
     Barrier proxies_loaded;
-    thread_pool tp(std::thread::hardware_concurrency());
-    tp.push([](auto) {
-        std::this_thread::sleep_for(50s);
-    });
+    //thread_pool tp(std::thread::hardware_concurrency());
 
     if(!file_exists("settings.json")) {
         std::cout << "Failed to open settings.json\n";
@@ -53,8 +50,8 @@ int main(int argc, char *argv[]) {
     });
     sched.signal_handle(SIGINT, [&] {
         std::cout << "Exiting...\n";
-        tp.clear_queue();
-        tp.resize(0);
+        //tp.clear_queue();
+        //tp.resize(0);
         sched.terminate();
     });
     Thread main_thread(sched, "main thread", [&] {

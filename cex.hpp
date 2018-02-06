@@ -242,7 +242,7 @@ public:
             auto url = "https://cex.io/api/order_book/" + c1 + "/" + c2;
             std::string response = this->first_wins([&, this, url = std::move(url)] {
                 auto proxy = this->get_proxy();
-                http::Request::Configuration conf(3s, {}, http::Version::v11, true, proxy);
+                http::Request::Configuration conf(5s, {}, http::Version::v11, true, proxy);
                 http::Request r(url, http::Method::GET, "application/json", conf);
                 r.finalize();
 
@@ -290,7 +290,7 @@ public:
 
                 arb.recalc_rates(c1 + "-" + c2, best);
             }
-        }, 15);
+        }, 20);
     }
 
 
