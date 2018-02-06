@@ -1,11 +1,14 @@
 /*
  *  CEX.IO exchange
+ *  TODO:
+ *  add trade({pairs, sizes})
+ *  add multi-index-container for orders with fields: id, pair-name, time, price, amt *
  */
-//test
 
 #ifndef CEX_H
 #define CEX_H
 #include <boost/algorithm/string.hpp>
+#include <boost/range/algorithm/replace_if.hpp>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -29,76 +32,35 @@ using namespace elle::chrono_literals;
 template<>
 class rest_api<CEX>: public rest_api_base<CEX> {
     std::string username;
-    ctpl::thread_pool tp;
+    std::unordered_map<std::string, double> min_sizes;
+    //ctpl::thread_pool tp;
     bool proxy_flood;
-public:
-    rest_api(const std::string& username = "", bool proxy_flood = true): tp(std::thread::hardware_concurrency()), proxy_flood(proxy_flood), username(username) {}
-    std::string trade(auto& arb, const std::string& pair, const std::string& rate, const std::string& amt) {
-        std::vector<std::string> coin(2);
-        boost::split(coin, pair, boost::is_any_of("-:"));
-        auto p = arb.as_pair(arb.pair(coin[0]+"-"+coin[1]).canonical);
-        auto& c1 = p.first, c2 = p.second;
-        std::string url = "https://cex.io/api/place_order/" + c1 + "/" + c2;
-        std::string answer;
-        produce_consume({{}}, [&, this](auto) {
-            http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
-            http::Request r(url, http::Method::POST, "application/x-www-form-urlencoded", conf);
-            auto key_pair = this->get_keypair();
-            std::string nonce = this->get_nonce(key_pair.first);
-            std::string signature = nonce + username + key_pair.first;
-            signature = encode(hmac::sign(signature, key_pair.second, Oneway::sha256).string());
-            boost::algorithm::to_upper(signature);
-            std::string body = "key=" + key_pair.first + "&signature=" + signature + "&nonce=" + nonce+"&type="+(arb(c1+"-"+c2).ord_type=="buylimit"?"buy":"sell")+"&amount="+amt+"&price="+rate;
-            r << body;
-            r.finalize();
 
-            if(r.status() != http::StatusCode::OK) {
-                throw std::runtime_error("status code is not ok");
+    std::string signed_payload(const std::unordered_map<std::string, std::string>& other_params = {}) {
+        auto key_pair = this->get_keypair();
+        std::string nonce = this->get_nonce(key_pair.first);
+        std::string signature = nonce + username + key_pair.first;
+        signature = encode(hmac::sign(signature, key_pair.second, Oneway::sha256).string());
+        boost::algorithm::to_upper(signature);
+        std::string body = "key=" + key_pair.first + "&signature=" + signature + "&nonce=" + nonce;
+
+        if(other_params.size() > 0) {
+            for(auto p : other_params) {
+                body += "&" + p.first + "=" + p.second;
             }
-            answer = r.response().string();
-        });
-        auto response = parse_str(answer);
-        std::string result = response["id"].GetString();
-        active_orders.push_back(result);
+        }
 
-        return result; 
+        return body;
     }
+public:
+    rest_api(const std::string& username = "", bool proxy_flood = true): /*tp(std::thread::hardware_concurrency()),*/ proxy_flood(proxy_flood), username(username) {}
 
-    void cancel_all() {
-        produce_consume(active_orders, [&, this](std::string id){
-            std::string answer = this->first_wins([&, id, this]{
-                http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
-                http::Request r("https://cex.io/api/cancel_order/", http::Method::POST, "application/x-www-form-urlencoded", conf);
-                auto key_pair = this->get_keypair();
-                std::string nonce = this->get_nonce(key_pair.first);
-                std::string signature = nonce + username + key_pair.first;
-                signature = encode(hmac::sign(signature, key_pair.second, Oneway::sha256).string());
-                boost::algorithm::to_upper(signature);
-                std::string body = "key=" + key_pair.first + "&signature=" + signature + "&nonce=" + nonce + "&id=" + id;
-                r << body;
-                r.finalize();
-
-                if(r.status() != http::StatusCode::OK) {
-                    throw std::runtime_error("status code is not ok");
-                }
-                return r.response().string();
-
-            }, proxy_flood ? 4 : 1);
-            std::cout<<id<<" is canceled: "<<answer<<"\n";
-        });
-    }
-
-    void update_balance(auto& balance) {
+    auto get_open_orders() {
         produce_consume({{}}, [&, this](auto) {
-            std::string response = this->first_wins([&, this] {
+            auto body = this->signed_payload();
+            std::string response = this->first_wins([&, this, body] {
                 http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
-                http::Request r("https://cex.io/api/balance/", http::Method::POST, "application/x-www-form-urlencoded", conf);
-                auto key_pair = this->get_keypair();
-                std::string nonce = this->get_nonce(key_pair.first);
-                std::string signature = nonce + username + key_pair.first;
-                signature = encode(hmac::sign(signature, key_pair.second, Oneway::sha256).string());
-                boost::algorithm::to_upper(signature);
-                std::string body = "key=" + key_pair.first + "&signature=" + signature + "&nonce=" + nonce;
+                http::Request r("https://cex.io/api/open_orders/", http::Method::POST, "application/x-www-form-urlencoded", conf);
                 r << body;
                 r.finalize();
 
@@ -108,9 +70,117 @@ public:
                 return r.response().string();
             }, proxy_flood ? 4 : 1);
             auto resp = parse_str(response);
+
             if(resp.HasParseError()) {
-                std::cout<<"Failed to parse: "<<response<<'\n';
+                std::cout << "Failed to parse: " << response << '\n';
                 return;
+            }
+
+            if(resp.IsObject() && resp.HasMember("error")) {
+                std::string error = resp["error"].GetString();
+                std::cout<<"get_open_orders failed: "<<error<<'\n';
+                throw std::runtime_error(error);
+            }
+
+            active_orders.clear();
+
+            for(const auto& entry : resp.GetArray()) {
+                auto ord = entry.GetObject();
+                active_orders.push_back(ord["id"].GetString());
+            }
+        });
+        return active_orders;
+    }
+
+    std::string trade(auto& arb, const std::string& pair, const std::string& rate, const std::string& amt) {
+        std::string result;
+        std::vector<std::string> coin(2);
+        boost::split(coin, pair, boost::is_any_of("-:"));
+        auto p = arb.as_pair(arb.pair(coin[0] + "-" + coin[1]).canonical);
+        auto& c1 = p.first, c2 = p.second;
+        std::string url = "https://cex.io/api/place_order/" + c1 + "/" + c2;
+        produce_consume({{}}, [&, this](auto) {
+            std::string body = this->signed_payload({{"type", (arb(c1 + "-" + c2).ord_type == "buylimit" ? "buy" : "sell")}, {"amount", amt}, {"price", rate}});
+            std::string answer = this->first_wins([&, this, body] {
+                http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
+                http::Request r(url, http::Method::POST, "application/x-www-form-urlencoded", conf);
+                r << body;
+                r.finalize();
+
+                if(r.status() != http::StatusCode::OK) {
+                    throw std::runtime_error("status code is not ok");
+                }
+
+                return r.response().string();
+            }, proxy_flood ? 4 : 1);
+            auto response = parse_str(answer);
+            result = response["id"].GetString();
+        });
+        active_orders.push_back(result);
+        return result;
+    }
+
+    auto cancel(const std::vector<std::string>& ids) {
+        std::unordered_map<std::string, bool> result;
+        produce_consume(ids, [&, this](std::string id) {
+            std::string body = this->signed_payload({{"id", id}});
+            result[id] = this->first_wins([&, id, this, body] {
+                http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
+                http::Request r("https://cex.io/api/cancel_order/", http::Method::POST, "application/x-www-form-urlencoded", conf);
+
+                r << body;
+                r.finalize();
+
+                if(r.status() != http::StatusCode::OK) {
+                    throw std::runtime_error("status code is not ok");
+                }
+                auto resp = r.response().string();
+
+                if(resp != "true" && resp != "false") {
+                    std::cout << "cancel failed: " << resp << '\n';
+                    throw std::runtime_error("cancel failed");
+                }
+                bool res = false;
+                std::istringstream(resp) >> std::boolalpha >> res;
+                return  res;
+            }, proxy_flood ? 4 : 1);
+        });
+        for(auto it = active_orders.begin(); it != active_orders.end();) {
+            if(result[*it]) it = active_orders.erase(it);
+            else ++it;
+        }
+        return result;
+    }
+
+    void cancel_all() {
+        cancel(active_orders);
+    }
+
+    void update_balance(auto& balance) {
+        produce_consume({{}}, [&, this](auto) {
+            std::string body = this->signed_payload();
+            std::string response = this->first_wins([&, this, body] {
+                http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
+                http::Request r("https://cex.io/api/balance/", http::Method::POST, "application/x-www-form-urlencoded", conf);
+                r << body;
+                r.finalize();
+
+                if(r.status() != http::StatusCode::OK) {
+                    throw std::runtime_error("status code is not ok");
+                }
+                return r.response().string();
+            }, proxy_flood ? 4 : 1);
+            auto resp = parse_str(response);
+
+            if(resp.HasParseError()) {
+                std::cout << "Failed to parse: " << response << '\n';
+                return;
+            }
+
+            if(resp.IsObject() && resp.HasMember("error")) {
+                std::string error = resp["error"].GetString();
+                std::cout<<"get_open_orders failed: "<<error<<'\n';
+                throw std::runtime_error(error);
             }
 
             balance.clear();
@@ -121,6 +191,7 @@ public:
                 if(k == "timestamp" || k == "username") continue;
 
                 double val = std::stod(entry.value.GetObject()["available"].GetString());
+                val -= std::stod(entry.value.GetObject()["orders"].GetString());
 
                 if(val != 0.) balance[k] = val;
             }
@@ -141,16 +212,23 @@ public:
             }, proxy_flood ? 10 : 1);
             //std::cout<<response<<'\n';
             auto resp = parse_str(response);
+
             if(resp.HasParseError()) {
-                std::cout<<"Failed to parse: "<<response<<'\n';
+                std::cout << "Failed to parse: " << response << '\n';
                 return;
             }
-            if(resp.HasMember("error")) {
-                throw std::runtime_error(resp["error"].GetString());
+
+            if(resp.IsObject() && resp.HasMember("error")) {
+                std::string error = resp["error"].GetString();
+                std::cout<<"get_open_orders failed: "<<error<<'\n';
+                throw std::runtime_error(error);
             }
 
             for(const auto& k : resp["data"].GetObject()["pairs"].GetArray()) {
-                all_pairs.push_back(std::string(k.GetObject()["symbol1"].GetString()) + CEX::delimeter + k.GetObject()["symbol2"].GetString());
+                std::string c1 = std::string(k.GetObject()["symbol1"].GetString()),
+                            c2 = std::string(k.GetObject()["symbol2"].GetString());
+                all_pairs.push_back(c1 + "-" + c2);
+                min_sizes[c1 + "-" + c2] = k.GetObject()["minLotSize"].GetDouble();
             }
         }, 200);
         return all_pairs;
@@ -158,8 +236,10 @@ public:
 
     void get_ob(const std::vector<std::string>& pairs, arbtools::arbitrage& arb, bool best = false) {
         produce_consume(pairs, [&, this](auto p) {
-            boost::replace_all(p, ":", "/");
-            auto url = "https://cex.io/api/order_book/" + p;
+            std::vector<std::string> coin(2);
+            boost::split(coin, p, boost::is_any_of("-:"));
+            std::string& c1 = coin[0], c2 = coin[1];
+            auto url = "https://cex.io/api/order_book/" + c1 + "/" + c2;
             std::string response = this->first_wins([&, this, url = std::move(url)] {
                 auto proxy = this->get_proxy();
                 http::Request::Configuration conf(3s, {}, http::Version::v11, true, proxy);
@@ -171,7 +251,7 @@ public:
                 }
                 return r.response().string();
             }, proxy_flood ? 10 : 1);
-            auto ft = tp.push([response = std::move(response)](int) {
+            /*auto ft = tp.push([response = std::move(response)](int) {
                 return parse_str(response);
             });
 
@@ -179,11 +259,14 @@ public:
                 sleep(100ms);
 
             Document doms = ft.get();
+            */
+            auto doms = parse_str(response);
+
             if(doms.HasParseError()) {
-                std::cout<<"Failed to parse: "<<response<<'\n';
+                std::cout << "Failed to parse: " << response << '\n';
                 return;
             }
-            std::string c1, c2;
+
             std::tie(c1, c2) = arb.as_pair(doms["pair"].GetString(), ":");
 
             if(doms.HasMember("asks")) {
