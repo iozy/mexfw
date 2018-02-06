@@ -179,7 +179,7 @@ public:
 
             if(resp.IsObject() && resp.HasMember("error")) {
                 std::string error = resp["error"].GetString();
-                std::cout<<"get_open_orders failed: "<<error<<'\n';
+                std::cout<<"update_balance failed: "<<error<<'\n';
                 throw std::runtime_error(error);
             }
 
@@ -292,6 +292,7 @@ public:
             }
         }, 20);
     }
+
 
 
 };

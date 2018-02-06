@@ -193,7 +193,6 @@ protected:
             for(size_t i = 0; i < n_wrks; ++i) {
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
                     work_ready.wait();
-                    yield();
                     while(!chan.empty() && !finish) {
                         try {
                             result = worker();
