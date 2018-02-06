@@ -1,6 +1,7 @@
 {
     "auto_start": true,
     "exchange": "CEX",
+    "username":"up104099398",
     "request_timeout": 3,
     "retries": 10,
     "base_currency": "USD",

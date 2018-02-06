@@ -8,10 +8,7 @@
 #ifndef CEX_H
 #define CEX_H
 #include <boost/algorithm/string.hpp>
-<<<<<<< HEAD
-=======
 #include <boost/range/algorithm/replace_if.hpp>
->>>>>>> dev
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -56,17 +53,6 @@ class rest_api<CEX>: public rest_api_base<CEX> {
         return body;
     }
 public:
-<<<<<<< HEAD
-    rest_api(const std::string& username = "", bool proxy_flood = true): tp(std::thread::hardware_concurrency()), proxy_flood(proxy_flood), username(username) {}
-
-    std::string trade(const std::string& pair, const std::string& rate, const std::string& amt) {
-        std::vector<std::string> coin(2);
-        boost::split(coin, pair, boost::is_any_of("-:"));
-        auto& c1 = coin[0], c2 = coin[1];
-        std::string url = "https://cecx.io/api/place_order/" + c1+"/"+c2;
-        return url;
-        //produce_consume({{}}, [&,this](auto){});
-=======
     rest_api(const std::string& username = "", bool proxy_flood = true): /*tp(std::thread::hardware_concurrency()),*/ proxy_flood(proxy_flood), username(username) {}
 
     auto get_open_orders() {
@@ -168,7 +154,6 @@ public:
 
     void cancel_all() {
         cancel(active_orders);
->>>>>>> dev
     }
 
     void update_balance(auto& balance) {

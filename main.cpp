@@ -29,10 +29,7 @@ typedef CEX EXCHANGE;
 int main(int argc, char *argv[]) {
     Scheduler sched;
     Barrier proxies_loaded;
-    thread_pool tp(std::thread::hardware_concurrency());
-    tp.push([](auto) {
-        std::this_thread::sleep_for(50s);
-    });
+    //thread_pool tp(std::thread::hardware_concurrency());
 
     if(!file_exists("settings.json")) {
         std::cout << "Failed to open settings.json\n";
@@ -40,7 +37,7 @@ int main(int argc, char *argv[]) {
     }
 
     auto settings = parse_file("settings.json");
-    rest_api<EXCHANGE> api("up104099398", settings["proxy_flood"].GetBool());
+    rest_api<EXCHANGE> api(settings["username"].GetString(), settings["proxy_flood"].GetBool());
     arbitrage arb(EXCHANGE::fee);
     Thread proxy_thread(sched, "update proxies", [&] {
         while(true)
@@ -53,18 +50,11 @@ int main(int argc, char *argv[]) {
     });
     sched.signal_handle(SIGINT, [&] {
         std::cout << "Exiting...\n";
-        tp.clear_queue();
-        tp.resize(0);
         sched.terminate();
     });
     Thread main_thread(sched, "main thread", [&] {
-        std::cout<<api.trade("btc:usd","","")<<'\t'<<api.trade("btc-usd", "", "")<<'\n';
-        return;
         api.load_keys();
         api.load_nonces();
-        std::cout<<"Opened orders: "<<api.get_open_orders()<<'\n';
-        std::cout<<"going to cancel them\n";
-        api.cancel_all();
         proxies_loaded.wait();
         std::unordered_map<std::string, size_t> hashes;
         std::vector<std::string> slow_pool, fast_pool;
@@ -142,7 +132,7 @@ int main(int argc, char *argv[]) {
                     std::cout<<'\n';
                     if(!traded) {
                         std::cout<<"trying to trade\n";
-                        auto x = arb.ob("USD-BTG", 10);
+                        auto x = arb.ob("BTG-USD", -10);
                         std::string rate = x.first, amt = "0.07";
                         //std::cout<<x<<'\n';
                         std::cout<<"Trade id="<<api.trade(arb, "BTG-USD", rate, amt)<<'\n';
