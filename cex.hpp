@@ -242,7 +242,7 @@ public:
             auto url = "https://cex.io/api/order_book/" + c1 + "/" + c2;
             std::string response = this->first_wins([&, this, url = std::move(url)] {
                 auto proxy = this->get_proxy();
-                http::Request::Configuration conf(5s, {}, http::Version::v11, true, proxy);
+                http::Request::Configuration conf(10s, {}, http::Version::v11, true, proxy);
                 http::Request r(url, http::Method::GET, "application/json", conf);
                 r.finalize();
 
@@ -260,6 +260,7 @@ public:
 
             Document doms = ft.get();
             */
+            std::cout<<response.substr(0,10)<<'\n';
             auto doms = parse_str(response);
 
             if(doms.HasParseError()) {

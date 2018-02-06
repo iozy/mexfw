@@ -182,54 +182,6 @@ public:
     // Patterns and routines to do async work
 protected:
     template<class F>
-    auto first_wins2(F worker = {}, size_t n_wrks = 4, size_t n_fail = 30, bool no_throw = false) {
-        decltype(worker()) result;
-        elle::With<Scope>() << [&, this] (Scope & scope) {
-            Channel<size_t> chan;
-            std::unordered_map<size_t, size_t> failures;
-            Barrier work_ready, work_done;
-            bool finish = false;
-
-            for(size_t i = 0; i < n_wrks; ++i) {
-                scope.run_background("worker" + std::to_string(i), [&, i, this] {
-                    work_ready.wait();
-
-                    while(!chan.empty()) {
-                        try {
-                            result = worker();
-                            work_done.open();
-                            break;
-                        } catch(...) {
-                            if(failures[i]++ < n_fail - 1) {
-                                chan.put(i);
-                            }
-                            else {
-                                //std::cout << "failed job=" << i << " failures=" << failures[i] << '\n';
-                                //failures[i] = 0;
-                                if(!no_throw) throw;
-                            }
-                        }
-                    }
-                });
-            }
-
-            scope.run_background("prod", [&] {
-                for(size_t i = 0; i < n_wrks; ++i) {
-                    chan.put(i);
-                }
-                work_ready.open();
-            });
-            scope.run_background("term", [&] {
-                work_done.wait();
-                chan.clear();
-                scope.terminate_now();
-            });
-            scope.wait();
-        };
-        return result;
-    }
-
-    template<class F>
     auto first_wins(F worker = {}, size_t n_wrks = 4, size_t n_fail = 30, bool no_throw = false) {
         decltype(worker()) result;
         elle::With<Scope>() << [&, this] (Scope & scope) {
@@ -241,7 +193,7 @@ protected:
             for(size_t i = 0; i < n_wrks; ++i) {
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
                     work_ready.wait();
-
+                    yield();
                     while(!chan.empty() && !finish) {
                         try {
                             result = worker();
