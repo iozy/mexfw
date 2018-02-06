@@ -220,7 +220,7 @@ public:
 
             if(resp.IsObject() && resp.HasMember("error")) {
                 std::string error = resp["error"].GetString();
-                std::cout<<"get_open_orders failed: "<<error<<'\n';
+                std::cout<<"get_all_pairs failed: "<<error<<'\n';
                 throw std::runtime_error(error);
             }
 
@@ -260,13 +260,12 @@ public:
 
             Document doms = ft.get();
             */
-            std::cout<<response.substr(0,10)<<'\n';
             auto doms = parse_str(response);
 
             if(doms.HasParseError()) {
                 std::cout << "Failed to parse: " << response << '\n';
-                return;
-            }
+                throw std::runtime_error("parsing error");
+            } //else {std::cout<<"parsed ok\n";}
 
             std::tie(c1, c2) = arb.as_pair(doms["pair"].GetString(), ":");
 

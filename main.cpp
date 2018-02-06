@@ -57,9 +57,9 @@ int main(int argc, char *argv[]) {
     Thread main_thread(sched, "main thread", [&] {
         api.load_keys();
         api.load_nonces();
-        std::cout<<"Opened orders: "<<api.get_open_orders()<<'\n';
-        std::cout<<"going to cancel them\n";
-        api.cancel_all();
+        //std::cout<<"Opened orders: "<<api.get_open_orders()<<'\n';
+        //std::cout<<"going to cancel them\n";
+        //api.cancel_all();
         proxies_loaded.wait();
         std::unordered_map<std::string, size_t> hashes;
         std::vector<std::string> slow_pool, fast_pool;
@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
                     std::cout<<'\n';
                     if(!traded) {
                         std::cout<<"trying to trade\n";
-                        auto x = arb.ob("USD-BTG", 10);
+                        auto x = arb.ob("BTG-USD", -10);
                         std::string rate = x.first, amt = "0.07";
                         //std::cout<<x<<'\n';
                         std::cout<<"Trade id="<<api.trade(arb, "BTG-USD", rate, amt)<<'\n';
