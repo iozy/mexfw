@@ -61,30 +61,28 @@ int main(int argc, char *argv[]) {
         std::cout<<api.trade("btc:usd","","")<<'\t'<<api.trade("btc-usd", "", "")<<'\n';
         return;
         api.load_keys();
+        api.load_nonces();
+        std::cout<<"Opened orders: "<<api.get_open_orders()<<'\n';
+        std::cout<<"going to cancel them\n";
+        api.cancel_all();
         proxies_loaded.wait();
         std::unordered_map<std::string, size_t> hashes;
         std::vector<std::string> slow_pool, fast_pool;
         std::unordered_map<std::string, double> bal;
-        api.update_balance(bal);
-        for(auto b: bal) {
-            std::cout<<b.first<<"="<<b.second<<" ";
-        }
-        std::cout<<'\n';
-        return;
         std::cout << "getting all pairs\n";
         fast_pool = api.get_all_pairs();
         api.get_ob(fast_pool, arb);
         std::cout << "saving hashes\n";
 
         for(const auto& p : fast_pool) {
-            hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;
+            hashes[p] = arb(as_pair(p)).hash;
         }
         sleep(5s);
         fast_pool = api.get_all_pairs();
         api.get_ob(fast_pool, arb);
         std::cout << "partitionize\n";
         auto sp_begin = std::partition(fast_pool.begin(), fast_pool.end(), [&](const auto & p) {
-            return hashes[p] != arb(as_pair(p, EXCHANGE::delimeter)).hash;
+            return hashes[p] != arb(as_pair(p)).hash;
         });
         std::cout << "movin\n";
         std::move(sp_begin, fast_pool.end(), std::back_inserter(slow_pool));
@@ -96,8 +94,8 @@ int main(int argc, char *argv[]) {
                 while(true) {
                     api.get_ob(slow_pool, arb);
                     auto fp_begin = std::partition(slow_pool.begin(), slow_pool.end(), [&](const auto & p) {
-                        bool x = hashes[p] == arb(as_pair(p, EXCHANGE::delimeter)).hash;
-                        hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;
+                        bool x = hashes[p] == arb(as_pair(p)).hash;
+                        hashes[p] = arb(as_pair(p)).hash;
                         return x;
                     });
                     std::move(fp_begin, slow_pool.end(), std::back_inserter(fast_pool));
@@ -109,8 +107,8 @@ int main(int argc, char *argv[]) {
                 while(true) {
                     api.get_ob(fast_pool, arb);
                     auto sp_begin = std::partition(fast_pool.begin(), fast_pool.end(), [&](const auto & p) {
-                        bool x = hashes[p] != arb(as_pair(p, EXCHANGE::delimeter)).hash;
-                        hashes[p] = arb(as_pair(p, EXCHANGE::delimeter)).hash;
+                        bool x = hashes[p] != arb(as_pair(p)).hash;
+                        hashes[p] = arb(as_pair(p)).hash;
                         return x;
                     });
                     std::move(sp_begin, fast_pool.end(), std::back_inserter(slow_pool));
@@ -119,6 +117,7 @@ int main(int argc, char *argv[]) {
                 }
             });
             scope.run_background("print_all", [&] {
+                bool traded = false;
                 while(true) {
                     std::cout << "slow_pool: " << slow_pool.size() << '\t';
                     //for(const auto& p : slow_pool) {
@@ -133,11 +132,29 @@ int main(int argc, char *argv[]) {
 
                     if(cycles.size() > 0) {
                         for(auto c : cycles) {
-                            //std::set<decltype(c)::value_type> cs(c.begin(), c.end());
-                            //if(cs.size() == c.size())
-                            std::cout << cycle2string(c) << '\n';
+                            std::cout << cycle2string(c) << "\tgain="<<gain(arb, c)<<'\n';
                         }
                     }
+                    api.update_balance(bal);
+                    for(auto b: bal) {
+                        std::cout<<b.first<<"="<<b.second<<" ";
+                    }
+                    std::cout<<'\n';
+                    if(!traded) {
+                        std::cout<<"trying to trade\n";
+                        auto x = arb.ob("USD-BTG", 10);
+                        std::string rate = x.first, amt = "0.07";
+                        //std::cout<<x<<'\n';
+                        std::cout<<"Trade id="<<api.trade(arb, "BTG-USD", rate, amt)<<'\n';
+                        scope.run_background("canceling", [&]{
+                            sleep(10s);
+                            std::cout<<"canceling all\n";
+                            api.cancel_all();
+                            scope.run_background("exiting", [&]{ sleep(10s); sched.terminate(); });
+                        });
+                        traded = true;
+                    }
+                    api.save_nonces();
 
                     sleep(7s);
                 }

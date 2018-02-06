@@ -35,6 +35,7 @@ protected:
     std::vector<network::Proxy> proxies;
     std::unordered_map<std::string, size_t> proxy_requests;
     std::unordered_map<std::string, size_t> ok_proxy_requests;
+    std::vector<std::string> active_orders;
     bool use_proxy;
 
 public:
@@ -48,20 +49,61 @@ public:
         }
 
         auto apikeys_json = parse_file(filename);
-
         apikeys.set_capacity(apikeys_json.Size());
-        for(const auto& entry : apikeys_json.GetArray()) {            
+
+        for(const auto& entry : apikeys_json.GetArray()) {
             apikeys.push_back(std::make_pair(entry.GetObject()["key"].GetString(), entry.GetObject()["secret"].GetString()));
         }
     }
     //void add_key(){}
     //void rm_key(){}
-    auto get_keypair(bool switch_ = true) {
+    std::pair<std::string, std::string> get_keypair(bool switch_ = true) {
+        if(apikeys.size() < 0) return std::make_pair("", "");
+
         if(switch_) {
             apikeys.rotate(std::next(apikeys.begin(), 1));
         }
 
         return *apikeys.begin();
+    }
+
+    void load_nonces(const std::string& filename = "nonces.json") {
+        nonces.clear();
+
+        if(!file_exists(filename)) {
+            return;
+        }
+
+        auto nonces_json = parse_file(filename);
+
+        for(const auto& entry : nonces_json.GetObject()) {
+            nonces[entry.name.GetString()] = entry.value.GetUint();
+        }
+    }
+
+    void save_nonces(const std::string& filename = "nonces.json") {
+        Document d;
+        auto& alloc = d.GetAllocator();
+        d.SetObject();
+
+        for(const auto& kp : apikeys) {
+            auto key = kp.first;
+            unsigned long int val = nonces[key];
+            d.AddMember(Value(key.c_str(), alloc).Move(), Value().SetUint(val == 0 ? 1 : val), alloc);
+        }
+
+        save_json(d, filename);
+    }
+
+    std::string get_nonce(const std::string& key) {
+        auto nonce_it = nonces.find(key);
+
+        if(nonce_it == nonces.end()) {
+            nonces[key] = 1;
+            return std::to_string(nonces[key]);
+        }
+
+        return std::to_string(++nonces[key]);
     }
 
 
@@ -200,10 +242,8 @@ protected:
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
                     work_ready.wait();
 
-                    while(!chan.empty()) {
+                    while(!chan.empty() && !finish) {
                         try {
-                            if(finish) break;
-
                             result = worker();
                             failures[i] = 0;
 
