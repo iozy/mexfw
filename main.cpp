@@ -126,6 +126,7 @@ int main(int argc, char *argv[]) {
                     if(cycles.size() > 0) {
                         for(auto c : cycles) {
                             std::cout << cycle2string(c) << "\tgain="<<gain(arb, c)<<'\n';
+                            std::cout << print_sizes(arb, c, arb.sizing(c, *c.begin(), arb.ob_size(*c.begin(), 0)))<<'\n';
                         }
                     }
                     api.update_balance(bal);
