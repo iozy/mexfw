@@ -57,9 +57,6 @@ int main(int argc, char *argv[]) {
     Thread main_thread(sched, "main thread", [&] {
         api.load_keys();
         api.load_nonces();
-        //std::cout<<"Opened orders: "<<api.get_open_orders()<<'\n';
-        //std::cout<<"going to cancel them\n";
-        //api.cancel_all();
         proxies_loaded.wait();
         std::unordered_map<std::string, size_t> hashes;
         std::vector<std::string> slow_pool, fast_pool;
@@ -73,6 +70,7 @@ int main(int argc, char *argv[]) {
             hashes[p] = arb(as_pair(p)).hash;
         }
         sleep(5s);
+        std::cout << "getting all pairs\n";
         fast_pool = api.get_all_pairs();
         api.get_ob(fast_pool, arb);
         std::cout << "partitionize\n";
@@ -135,20 +133,7 @@ int main(int argc, char *argv[]) {
                         std::cout<<b.first<<"="<<b.second<<" ";
                     }
                     std::cout<<'\n';
-                    if(!traded) {
-                        std::cout<<"trying to trade\n";
-                        auto x = arb.ob("BTG-USD", -10);
-                        std::string rate = x.first, amt = "0.07";
-                        //std::cout<<x<<'\n';
-                        std::cout<<"Trade id="<<api.trade(arb, "BTG-USD", rate, amt)<<'\n';
-                        scope.run_background("canceling", [&]{
-                            sleep(10s);
-                            std::cout<<"canceling all\n";
-                            api.cancel_all();
-                            scope.run_background("exiting", [&]{ sleep(10s); sched.terminate(); });
-                        });
-                        traded = true;
-                    }
+                    
                     api.save_nonces();
 
                     sleep(7s);

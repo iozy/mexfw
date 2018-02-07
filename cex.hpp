@@ -267,6 +267,12 @@ public:
                 throw std::runtime_error("parsing error");
             } //else {std::cout<<"parsed ok\n";}
 
+            if(doms.IsObject() && doms.HasMember("error")) {
+                std::string error = doms["error"].GetString();
+                std::cout<<"get_ob failed: "<<error<<'\n';
+                throw std::runtime_error(error);
+            }
+
             std::tie(c1, c2) = arb.as_pair(doms["pair"].GetString(), ":");
 
             if(doms.HasMember("asks")) {
