@@ -112,28 +112,38 @@ int main(int argc, char *argv[]) {
             scope.run_background("print_all", [&] {
                 bool traded = false;
                 while(true) {
-                    std::cout << "slow_pool: " << slow_pool.size() << '\t';
-                    //for(const auto& p : slow_pool) {
-                    //    std::cout << p << ": " << arb(as_pair(p, EXCHANGE::delimeter)).hash << ' ' << hashes[p] << '\n';
-                    //}
+                    /*std::cout << "slow_pool: " << slow_pool.size() << '\t';
                     std::cout << "fast_pool: " << fast_pool.size() << '\t';
-                    //for(const auto& p : fast_pool) {
-                    //    std::cout << p << ": " << arb(as_pair(p, EXCHANGE::delimeter)).hash << ' ' << hashes[p] << '\n';
+                    std::cout << "S: " << fast_pool.size() + slow_pool.size() << '\n';*/
+                    //arb.recalc_rates(pair, true);
+                    std::string pair = "ETH-USD";
+                    //std::cout<<std::left<<std::setw(20)<<"bids"<<std::setw(20)<<"asks"<<std::setw(20)<<"asks"<<'\n';
+                    //for(size_t i = 0; i < 5; ++i) {
+                    //    std::cout<<std::left<<std::setw(20)<<gain_r(arb.ob_size(pair, i))<<std::setw(20)<<gain_r(arb.ob_size(pair, -i, true))<<std::setw(20)<<gain_r(arb.ob_size("USD-BTC", i))<<'\n';
                     //}
-                    std::cout << "S: " << fast_pool.size() + slow_pool.size() << '\n';
+                    //std::cout<<'\n';
                     auto cycles = arb.find_cycles();
+                    std::cout<<cycles<<'\n';
+                    std::cout<<"current rate="<<arb(pair).rate<<" weight="<<arb(pair).weight<<'\n';
+                    arb.change_rate(pair, gain_r(arb.ob_size(pair, 10, true)));
+                    std::cout<<"current rate="<<arb(pair).rate<<" weight="<<arb(pair).weight<<'\n';
+                    cycles = arb.find_cycles();
+                    std::cout<<cycles<<'\n';
 
                     if(cycles.size() > 0) {
                         for(auto c : cycles) {
                             std::cout << cycle2string(c) << "\tgain="<<gain(arb, c)<<'\n';
-                            std::cout << print_sizes(arb, c, arb.sizing(c, *c.begin(), arb.ob_size(*c.begin(), 0)))<<'\n';
+                            for(auto p: c) {
+                                auto sz = arb.sizing(c, p, arb.ob_size(p, 0));
+                                std::cout << print_sizes(arb, c, sz)<<" profit="<<calc_profit(c, sz)<<'\n';                                
+                            }
                         }
                     }
                     api.update_balance(bal);
-                    for(auto b: bal) {
+                    /*for(auto b: bal) {
                         std::cout<<b.first<<"="<<b.second<<" ";
                     }
-                    std::cout<<'\n';
+                    std::cout<<'\n';*/
                     
                     api.save_nonces();
 
