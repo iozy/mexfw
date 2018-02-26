@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <functional>
+#include <boost/algorithm/cxx11/any_of.hpp>
 #include <rapidjson/document.h>
 #include <rapidjson/istreamwrapper.h>
 #include <elle/reactor/scheduler.hh>
@@ -23,6 +24,7 @@ using namespace mexfw::utils;
 using namespace arbtools;
 using namespace arbtools::misc;
 using namespace ctpl;
+using boost::algorithm::any_of_equal;
 
 typedef CCEX EXCHANGE;
 
@@ -64,6 +66,7 @@ int main(int argc, char *argv[]) {
         //std::cout<<"opened orders: "<<api.get_open_orders()<<'\n';
         while(true) {
             api.get_full_ob(arb);
+            api.update_balance(balance);
             /*std::cout<<"mcap-btc rate = "<<arb("mcap-btc").rate<<" "<<arb.ob("mcap-btc", 0)<<" "<<arb.ob("mcap-btc", 0, true)<<'\n';
             api.get_ob({"mcap-btc"}, arb);
             std::cout<<"mcap-btc rate = "<<arb("mcap-btc").rate<<" "<<arb.ob("mcap-btc", 0)<<" "<<arb.ob("mcap-btc", 0, true)<<'\n';
@@ -89,6 +92,10 @@ int main(int argc, char *argv[]) {
                             if(profit>0 && arb.is_aligned(cycle, sizes)) {
                                 std::cout<<"locked "<<p<<", @rate="<<arb(p).rate<<", maximizing "<<*nxt_p<<", row="<<j<<" ->"<<arb.ob_size(*nxt_p, j)<<" gain="<<gain(arb, cycle)<<" real_gain="<<calc_gain(cycle, sizes)<<"\n";
                                 std::cout<<print_sizes(arb, cycle, sizes)<<" profit="<<profit<<'\n';
+                                if(balance.count(as_pair(cycle[0]).first))
+                                    if(balance[as_pair(cycle[0]).first] >= sizes[cycle[0]].first) {
+                                        std::cout<<"groups: "<<groupping(cycle, sizes, balance, true)<<'\n';
+                                    }
                             }
                         }
 
@@ -97,19 +104,19 @@ int main(int argc, char *argv[]) {
                     arb.change_rate(p, gain_r(arb.ob_size(p, 0, false)));
                     std::rotate(cycle.begin(), std::next(cycle.begin()), cycle.end());
                 }
-                std::cout<<"DOMS:\n";
+                /*std::cout<<"DOMS:\n";
                 for(auto p: cycle) {
                     for(size_t i = 0; i < arb(p).ob.size(); ++i) {
                         if(i == 0) std::cout<<p<<": "<<arb.ob(p, 0, true)<<" %in sz% "<<arb.ob_size(p, 0, true)<<"\n-----------------\n";
                         std::cout<<p<<": "<<arb.ob(p, i)<<" %in sz% "<<arb.ob_size(p, i)<<'\n';
                     }
                     std::cout<<'\n';
-                }
+                }*/
                 //break;
                 std::cout<<'\n';
             }
-            //api.update_balance(balance);
-            std::cout<<"balance:"<<api.get_balance()<<'\n'<<'\n';
+            std::cout<<"balance: "<<balance<<'\n';
+            //std::cout<<"balance:"<<api.get_balance()<<'\n'<<'\n';
             api.save_nonces();
             sleep(1s);
         }
