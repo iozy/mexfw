@@ -7,6 +7,7 @@
 #include <elle/reactor/scheduler.hh>
 #include <elle/reactor/Thread.hh>
 #include <elle/reactor/Barrier.hh>
+#include <elle/reactor/signal.hh>
 #include <elle/reactor/Channel.hh>
 #include <elle/reactor/http/Request.hh>
 #include <ctpl.h>
@@ -44,7 +45,7 @@ int main(int argc, char *argv[]) {
     rest_api<EXCHANGE> api(settings["proxy_flood"].GetBool());
     arbitrage arb(EXCHANGE::fee);
     Thread proxy_thread(sched, "update proxies", [&] {
-        while(true)
+        while(!sched.done())
         {
             api.load_proxies();
             //std::cout << "Loading proxies is done ok.\n";
@@ -65,12 +66,27 @@ int main(int argc, char *argv[]) {
             proxies_loaded.wait();
             std::unordered_map<std::string, double> balance;
 
+            Signal sbu, sfo;
             //std::cout<<"pairs="<<api.get_all_pairs()<<'\n';
             //std::cout<<"opened orders: "<<api.get_open_orders()<<'\n';
+            
+                        sched.terminate_now();
+            scope.run_background("update_balance", [&]{ 
+                while(!sched.done()) {
+                    api.update_balance(balance); 
+                    sbu.signal();
+                    sleep(1s);
+                }
+            });
+            scope.run_background("get_full_ob",[&]{
+                while(!sched.done()) {
+                    api.get_full_ob(arb);
+                    sfo.signal();
+                    sleep(1s);
+                }
+            });
             while(true) {
                 std::unordered_map<std::string, cycleSize_t> cs;
-                scope.run_background("update_balance", [&]{ api.update_balance(balance); });
-                api.get_full_ob(arb);
                 /*std::cout<<"mcap-btc rate = "<<arb("mcap-btc").rate<<" "<<arb.ob("mcap-btc", 0)<<" "<<arb.ob("mcap-btc", 0, true)<<'\n';
                 api.get_ob({"mcap-btc"}, arb);
                 std::cout<<"mcap-btc rate = "<<arb("mcap-btc").rate<<" "<<arb.ob("mcap-btc", 0)<<" "<<arb.ob("mcap-btc", 0, true)<<'\n';
@@ -78,6 +94,7 @@ int main(int argc, char *argv[]) {
                 std::cout<<"mcap-btc rate = "<<arb("mcap-btc").rate<<'\n';
                 arb.change_rate("mcap-btc", gain_r(arb.ob_size("mcap-btc",0, false)));
                 std::cout<<"mcap-btc rate = "<<arb("mcap-btc").rate<<'\n';*/
+                sfo.wait();
                 auto cycles = arb.find_cycles();
                 std::cout << "Found " << cycles.size() << " cycles\n";
                 //api.get_ob(arb.extract_unique_pairs(cycles), arb);
@@ -98,14 +115,13 @@ int main(int argc, char *argv[]) {
                                 arb.align_sizes(cycle, sizes);
                                 double profit = calc_profit(cycle, sizes);
 
-                                if(profit > 0 && arb.is_aligned(cycle, sizes)) {
+                                if(profit > 0 && arb.is_aligned(cycle, sizes) && arb.is_minsized(sizes)) {
                                     std::cout << "locked " << p << ", @rate=" << arb(p).rate << ", maximizing " << *nxt_p << ", row=" << j << " ->" << arb.ob_size(*nxt_p, j) << " gain=" << gain(arb, cycle) << " real_gain=" << calc_gain(cycle, sizes) << "\n";
                                     std::cout << print_sizes(arb, cycle, sizes) << " profit=" << profit << '\n';
-                                    scope.wait();
                                     if(balance.count(as_pair(cycle[0]).first))
                                         if(balance[as_pair(cycle[0]).first] >= sizes[cycle[0]].first) {
                                             cs[cycle2string(cycle)] = sizes;
-                                            std::cout << "groups: " << groupping(cycle, sizes, balance) << '\n';
+                                            std::cout << "groups: " << groupping(cycle, sizes, {}) << '\n';
                                         }
                                 }
                             }
@@ -128,10 +144,12 @@ int main(int argc, char *argv[]) {
                 }
                 std::vector<std::pair<std::string, cycleSize_t>> vcs(cs.begin(), cs.end());
                 std::sort(vcs.begin(), vcs.end(), [&](auto& a, auto& b) {
-                    double p_a = calc_profit(string2cycle(a.first), a.second);
-                    double p_b = calc_profit(string2cycle(b.first), b.second);
-                    if(arb(*string2cycle(a.first).rbegin()).c2 != "usd") p_a *= arb(arb(*string2cycle(a.first).rbegin()).c2+"-usd").rate;
-                    if(arb(*string2cycle(b.first).rbegin()).c2 != "usd") p_b *= arb(arb(*string2cycle(b.first).rbegin()).c2+"-usd").rate;
+                    auto ca = string2cycle(a.first);
+                    auto cb = string2cycle(b.first);
+                    double p_a = calc_profit(ca, a.second);
+                    double p_b = calc_profit(cb, b.second);
+                    if(arb(*ca.rbegin()).c2 != "usd") p_a *= arb(arb(*ca.rbegin()).c2+"-usd").rate;
+                    if(arb(*cb.rbegin()).c2 != "usd") p_b *= arb(arb(*cb.rbegin()).c2+"-usd").rate;
 
                     return p_a > p_b;
                 });
@@ -139,8 +157,38 @@ int main(int argc, char *argv[]) {
                     std::cout<<"Profitable cycles and sizes:\n";
                     for(auto item: vcs) {
                         std::cout<<item.first<<" sz:"<<print_sizes(arb, string2cycle(item.first), item.second)<<" profit="<<calc_profit(string2cycle(item.first), item.second)<<'\n';
+                        auto cycle = string2cycle(item.first);
+                        auto sizes = item.second;
+                        auto groups = groupping(cycle, sizes, balance);
+                        for(auto g: groups) {
+                            std::cout<<"Trading group "<<g<<'\n';
+                            elle::With<Scope>() << [&](Scope& scope_trading) {
+                                for(auto p: g) {
+                                    scope_trading.run_background("trading "+p, [&, p]{ std::cout<<">> Trading "<<p<<" "<<sizes[p]<<'\n'; });
+                                }
+                                scope_trading.wait();
+                            };
+
+                        }
+                        std::cout<<"cycle is traded\n";
+                        sched.terminate_now();
                     }
+                    /*std::cout<<"Trading first profitable cycle:\n";
+                    auto cycle = string2cycle(vcs[0].first);
+                    auto sizes = vcs[0].second;
+                    auto groups = groupping(cycle, sizes, balance);
+                    for(auto g: groups) {
+                        std::cout<<"Trading group "<<g<<'\n';
+                        elle::With<Scope>() << [&](Scope& scope_trading) {
+                            for(auto p: g) {
+                                scope_trading.run_background("trading "+p, [&]{ std::cout<<">> Trading "<<p<<" "<<sizes[p]<<'\n'; });
+                            }
+                            scope_trading.wait();
+                        };
+
+                    }*/
                 }
+                
                 std::cout << "balance: " << balance << '\n';
                 //std::cout<<"balance:"<<api.get_balance()<<'\n'<<'\n';
                 api.save_nonces();
