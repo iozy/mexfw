@@ -185,30 +185,45 @@ protected:
     auto first_wins(F worker = {}, size_t n_wrks = 4, size_t n_fail = 30, bool no_throw = false) {
         decltype(worker()) result;
         elle::With<Scope>() << [&, this] (Scope & scope) {
-            Channel<size_t> chan;
+            //Channel<size_t> chan;
             std::unordered_map<size_t, size_t> failures;
             Barrier work_ready, work_done;
             bool finish = false;
-
             for(size_t i = 0; i < n_wrks; ++i) {
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
-                    work_ready.wait();
-                    while(!chan.empty() && !finish) {
+                    bool undone = true;
+                    std::cout<<"started "<<i<<'\n';
+                    while(undone && !finish) {
                         try {
+                            std::cout<<"trying "<<i<<'\n';
                             result = worker();
+                            std::cout<<"win "<<i<<'\n';
                             failures[i] = 0;
 
                             if(finish) break;
 
                             //std::cout<<"worker "<<i<<" wins\n";
-                            chan.clear();
+                            finish = true;
+                            undone = false;
+                            scope.run_background("term", [&] {
+                                finish = true;
+                                std::cout<<"term all\n";
+                                scope.terminate_now();
+                            });
+                            break;
+                        } 
+                        catch(Terminate const&) {
+                            std::cout<<"terminated "<<i<<'\n';
                             finish = true;
                             break;
-                        } catch(...) {
+                        }
+
+                        catch(...) {
+                            std::cout<<"failed "<<i<<'\n';
                             if(finish) break;
 
                             if(failures[i]++ < n_fail - 1) {
-                                chan.put(i);
+                                undone = false;
                             }
                             else {
                                 //std::cout << "failed job=" << i << " failures=" << failures[i] << '\n';
@@ -217,22 +232,10 @@ protected:
                             }
                         }
                     }
-                    work_done.open();
                 });
             }
 
-            scope.run_background("term", [&] {
-                work_done.wait();
-                chan.clear();
-                finish = true;
-                scope.terminate_now();
-            });
-            scope.run_background("prod", [&] {
-                for(size_t i = 0; i < n_wrks; ++i) {
-                    chan.put(i);
-                }
-                work_ready.open();
-            });
+            
             scope.wait();
         };
         return result;
