@@ -55,10 +55,7 @@ int main(int argc, char *argv[]) {
     });
     sched.signal_handle(SIGINT, [&] {
         std::cout << "Exiting...\n";
-        //tp.clear_queue();
-        //tp.resize(0);
-        sched.run_later("terminator", [&]{ sched.terminate_later(); });
-        
+        sched.terminate_now();
     });
     Thread main_thread(sched, "main thread", [&] {
         elle::With<Scope>() << [&](Scope & scope) {
@@ -72,7 +69,7 @@ int main(int argc, char *argv[]) {
             //std::cout<<"opened orders: "<<api.get_open_orders()<<'\n';
             
             //scope.run_background("terminator", [&]{ sleep(1s); sched.terminate_now(); });
-                    
+              
             scope.run_background("update_balance", [&]{ 
                 while(!sched.done()) {
                     api.get_all_pairs();
