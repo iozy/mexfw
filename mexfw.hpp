@@ -184,12 +184,13 @@ protected:
     template<class F>
     auto first_wins(F worker = {}, size_t n_wrks = 4, size_t n_fail = 30, bool no_throw = false) {
         decltype(worker()) result;
-        elle::With<Scope>() << [&, this] (Scope & scope) {
-            Channel<size_t> chan;
-            std::unordered_map<size_t, size_t> failures;
-            Barrier work_ready, work_done;
-            bool finish = false;
+        Channel<size_t> chan;
+        std::unordered_map<size_t, size_t> failures;
+        Barrier work_ready, work_done;
+        bool finish = false;
 
+        elle::With<Scope>() << [&, this] (Scope & scope) {
+            
             for(size_t i = 0; i < n_wrks; ++i) {
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
                     work_ready.wait();
@@ -204,7 +205,9 @@ protected:
                             chan.clear();
                             finish = true;
                             break;
-                        } catch(...) {
+                        } 
+                        catch(Terminate const&) { break; }
+                        catch(...) {
                             if(finish) break;
 
                             if(failures[i]++ < n_fail - 1) {
@@ -239,11 +242,12 @@ protected:
     }
 
     template<class F> void produce_consume(const std::vector<std::string>& work, F worker, size_t n_fail = 30, bool no_throw = false) {
-        elle::With<Scope>() << [&, this] (Scope & scope) {
-            Channel<std::string> chan;
-            std::unordered_map<std::string, size_t> failures;
-            Barrier work_ready;
+        Channel<std::string> chan;
+        std::unordered_map<std::string, size_t> failures;
+        Barrier work_ready;
 
+        elle::With<Scope>() << [&, this] (Scope & scope) {
+            
             for(size_t i = 0; i < work.size(); ++i) {
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
                     work_ready.wait();
@@ -254,7 +258,9 @@ protected:
                         try {
                             worker(job);
                             failures[job] = 0;
-                        } catch(...) {
+                        }
+                        catch(Terminate const&) { break; }
+                        catch(...) {
                             if(failures[job]++ < n_fail - 1) {
                                 chan.put(job);
                             }
