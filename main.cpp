@@ -70,7 +70,6 @@ int main(int argc, char *argv[]) {
             //std::cout<<"pairs="<<api.get_all_pairs()<<'\n';
             //std::cout<<"opened orders: "<<api.get_open_orders()<<'\n';
             
-                        sched.terminate_now();
             scope.run_background("update_balance", [&]{ 
                 while(!sched.done()) {
                     api.update_balance(balance); 
@@ -171,7 +170,6 @@ int main(int argc, char *argv[]) {
 
                         }
                         std::cout<<"cycle is traded\n";
-                        sched.terminate_now();
                     }
                     /*std::cout<<"Trading first profitable cycle:\n";
                     auto cycle = string2cycle(vcs[0].first);
@@ -197,7 +195,6 @@ int main(int argc, char *argv[]) {
 
             scope.wait();
         };
-        sched.terminate();
     });
 
     try {
