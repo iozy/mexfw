@@ -8,6 +8,7 @@
 #include <elle/reactor/Scope.hh>
 #include <elle/reactor/Channel.hh>
 #include <elle/reactor/Barrier.hh>
+#include <elle/reactor/semaphore.hh>
 #include <elle/reactor/Thread.hh>
 #include <elle/reactor/network/proxy.hh>
 #include <rapidjson/document.h>
@@ -184,11 +185,12 @@ protected:
     template<class F>
     auto first_wins(F worker = {}, size_t n_wrks = 4, size_t n_fail = 30, bool no_throw = false) {
         decltype(worker()) result;
+        std::unordered_map<size_t, size_t> failures;
+        //Barrier work_ready, work_done;
+        bool finish = false;
+        Semaphore sem(1);
+
         elle::With<Scope>() << [&, this] (Scope & scope) {
-            //Channel<size_t> chan;
-            std::unordered_map<size_t, size_t> failures;
-            Barrier work_ready, work_done;
-            bool finish = false;
             for(size_t i = 0; i < n_wrks; ++i) {
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
                     bool undone = true;
@@ -197,19 +199,17 @@ protected:
                         try {
                             std::cout<<"trying "<<i<<'\n';
                             result = worker();
-                            std::cout<<"win "<<i<<'\n';
-                            failures[i] = 0;
-
-                            if(finish) break;
-
-                            //std::cout<<"worker "<<i<<" wins\n";
-                            finish = true;
-                            undone = false;
-                            scope.run_background("term", [&] {
+                            if(sem.acquire()) {
+                                std::cout<<"win "<<i<<'\n';
+                                failures[i] = 0;
+                                //if(finish) break;
                                 finish = true;
-                                std::cout<<"term all\n";
-                                scope.terminate_now();
-                            });
+                                scope.run_background("term", [&] {
+                                    std::cout<<"term all\n";
+                                    scope.terminate_now();
+                                });
+                            }
+                            undone = false;
                             break;
                         } 
                         catch(Terminate const&) {
@@ -217,11 +217,9 @@ protected:
                             finish = true;
                             break;
                         }
-
                         catch(...) {
                             std::cout<<"failed "<<i<<'\n';
                             if(finish) break;
-
                             if(failures[i]++ < n_fail - 1) {
                                 undone = false;
                             }
@@ -234,30 +232,31 @@ protected:
                     }
                 });
             }
-
-            
             scope.wait();
         };
         return result;
     }
 
     template<class F> void produce_consume(const std::vector<std::string>& work, F worker, size_t n_fail = 30, bool no_throw = false) {
+        Channel<std::string> chan;
+        std::unordered_map<std::string, size_t> failures;
+        for(const auto& j : work) {
+            chan.put(j);
+        }
         elle::With<Scope>() << [&, this] (Scope & scope) {
-            Channel<std::string> chan;
-            std::unordered_map<std::string, size_t> failures;
-            Barrier work_ready;
-
             for(size_t i = 0; i < work.size(); ++i) {
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
-                    work_ready.wait();
-
                     while(!chan.empty()) {
                         auto job = chan.get();
-
                         try {
                             worker(job);
                             failures[job] = 0;
-                        } catch(...) {
+                        }
+                        catch(Terminate const&) {
+                            std::cout<<"terminated p-c "<<i<<'\n';
+                            break;
+                        }
+                        catch(...) {
                             if(failures[job]++ < n_fail - 1) {
                                 chan.put(job);
                             }
@@ -270,13 +269,6 @@ protected:
                     }
                 });
             }
-
-            scope.run_background("prod", [&] {
-                for(const auto& j : work) {
-                    chan.put(j);
-                }
-                work_ready.open();
-            });
             scope.wait();
         };
     }
