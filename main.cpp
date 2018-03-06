@@ -64,11 +64,15 @@ int main(int argc, char *argv[]) {
             api.load_keys();
             api.load_nonces();
             proxies_loaded.wait();
-            std::unordered_map<std::string, double> balance;
+            std::unordered_map<std::string, double> balance, b0;
 
             Signal sbu, sfo;
             //std::cout<<"pairs="<<api.get_all_pairs()<<'\n';
             //std::cout<<"opened orders: "<<api.get_open_orders()<<'\n';
+            /*for(auto b: EXCHANGE::bases) {
+                std:: cout<<b<<" ";
+            }
+            std::cout<<'\n';*/
             
             scope.run_background("update_balance", [&]{ 
                 while(!sched.done()) {
@@ -83,6 +87,10 @@ int main(int argc, char *argv[]) {
                     sfo.signal();
                     sleep(1s);
                 }
+            });
+            scope.run_background("get_init_balance", [&]{
+                sbu.wait();
+                b0 = balance;
             });
             while(true) {
                 std::unordered_map<std::string, cycleSize_t> cs;
@@ -106,7 +114,7 @@ int main(int argc, char *argv[]) {
                         auto p = *cycle.begin();
                         //arb.change_rate(p, gain_r(arb.ob_size(p, 0, true)));
 
-                        for(auto nxt_p = std::next(cycle.begin()); nxt_p != cycle.end(); ++nxt_p) {
+                        for(auto nxt_p = std::next(cycle.begin(), 0); nxt_p != cycle.end(); ++nxt_p) {
                             for(size_t j = 0; j < arb(p).ob.size(); ++j) {
                                 //auto sizes = arb.sizing_fixed(cycle, *nxt_p, arb.ob_size(*nxt_p, j), {{p, gain_r(arb.ob_size(p, 0, true))}});
                                 cycleSize_t sizes = arb.sizing(cycle, *nxt_p, arb.ob_size(*nxt_p, j)); 
@@ -124,6 +132,8 @@ int main(int argc, char *argv[]) {
                                         }
                                 }
                             }
+                            // calc sizes for min input
+                            //cycleSize_t sizes = arb.sizing(cycle, *nxt_p, arb.sums1());
                         }
 
                         //arb.change_rate(p, gain_r(arb.ob_size(p, 0, false)));
@@ -188,6 +198,7 @@ int main(int argc, char *argv[]) {
                 }
                 
                 std::cout << "balance: " << balance << '\n';
+                std::cout << "delta: " << delta(b0, balance) << '\n';
                 //std::cout<<"balance:"<<api.get_balance()<<'\n'<<'\n';
                 api.save_nonces();
                 sleep(1s);

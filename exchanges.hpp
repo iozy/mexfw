@@ -11,7 +11,7 @@ namespace mexfw {
 struct CCEX {
     /*c-cex.com*/
     static constexpr auto fee = 0.002;
-    static constexpr auto bases = {"btc", "doge", "ltc", "usd"};
+    static constexpr auto bases = {"btc", "doge", "ltc", "usd"}; 
     static constexpr auto delimeter = "-";
 };
 

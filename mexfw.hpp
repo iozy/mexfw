@@ -190,10 +190,11 @@ protected:
         bool finish = false;
 
         elle::With<Scope>() << [&, this] (Scope & scope) {
-            
+            for(size_t i = 0; i < n_wrks; ++i) {
+                chan.put(i);
+            }
             for(size_t i = 0; i < n_wrks; ++i) {
                 scope.run_background("worker" + std::to_string(i), [&, i, this] {
-                    work_ready.wait();
                     while(!chan.empty() && !finish) {
                         try {
                             result = worker();
@@ -229,12 +230,6 @@ protected:
                 chan.clear();
                 finish = true;
                 scope.terminate_now();
-            });
-            scope.run_background("prod", [&] {
-                for(size_t i = 0; i < n_wrks; ++i) {
-                    chan.put(i);
-                }
-                work_ready.open();
             });
             scope.wait();
         };
