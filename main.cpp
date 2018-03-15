@@ -9,6 +9,7 @@
 #include <elle/reactor/Barrier.hh>
 #include <elle/reactor/signal.hh>
 #include <elle/reactor/Channel.hh>
+#include <elle/reactor/fsm.hh>
 #include <elle/reactor/http/Request.hh>
 #include <ctpl.h>
 #include "exchanges.hpp"
@@ -67,6 +68,7 @@ int main(int argc, char *argv[]) {
             std::unordered_map<std::string, double> balance, b0;
 
             Signal sbu, sfo;
+
             //std::cout<<"pairs="<<api.get_all_pairs()<<'\n';
             //std::cout<<"opened orders: "<<api.get_open_orders()<<'\n';
             /*for(auto b: EXCHANGE::bases) {
@@ -163,21 +165,25 @@ int main(int argc, char *argv[]) {
                     return p_a > p_b;
                 });
                 if(vcs.size()) {
+                    
                     std::cout<<"Profitable cycles and sizes:\n";
                     for(auto item: vcs) {
                         std::cout<<item.first<<" sz:"<<print_sizes(arb, string2cycle(item.first), item.second)<<" profit="<<calc_profit(string2cycle(item.first), item.second)<<'\n';
                         auto cycle = string2cycle(item.first);
                         auto sizes = item.second;
                         auto groups = groupping(cycle, sizes, balance);
-                        for(auto g: groups) {
-                            std::cout<<"Trading group "<<g<<'\n';
-                            elle::With<Scope>() << [&](Scope& scope_trading) {
-                                for(auto p: g) {
-                                    scope_trading.run_background("trading "+p, [&, p]{ std::cout<<">> Trading "<<p<<" "<<sizes[p]<<'\n'; });
-                                }
-                                scope_trading.wait();
-                            };
 
+                        for(auto g: groups) {
+                            fsm::Machine m;
+                            Signal sto;
+                            bool failed = true;
+                            auto& trading_state = m.state_make("trading", [&, g]{ std::cout<<"trading "<<g<<'\n'; sleep(10s); sto.signal(); });
+                            auto& failed_state = m.state_make("failed", [g]{ std::cout<<"failed "<<g<<'\n'; });
+                            auto& done_state = m.state_make("done", [&, g]{ std::cout<<"done "<<g<<'\n'; failed = false; });
+                            m.transition_add(trading_state, done_state, Waitables{&sbu}).action([]{std::cout<<"going done\n";});
+                            m.transition_add(trading_state, failed_state, Waitables{&sto}).action([]{std::cout<<"going timeout\n";});
+                            m.run();
+                            if(failed) break;
                         }
                         std::cout<<"cycle is traded\n";
                     }
