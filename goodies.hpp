@@ -34,7 +34,8 @@ inline Document parse_str(const std::string& s) {
     return d;
 }
 
-std::string json_to_str(auto& d) {
+template<class T>
+std::string json_to_str(T& d) {
     StringBuffer buffer;
     Writer<StringBuffer> writer(buffer);
     d.Accept(writer);
