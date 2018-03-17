@@ -92,7 +92,8 @@ public:
         return active_orders;
     }
 
-    std::string trade(auto& arb, const std::string& pair, const std::string& rate, const std::string& amt) {
+    template<class arb_t>
+    std::string trade(arb_t& arb, const std::string& pair, const std::string& rate, const std::string& amt) {
         std::string result;
         std::vector<std::string> coin(2);
         boost::split(coin, pair, boost::is_any_of("-:"));
@@ -156,7 +157,8 @@ public:
         cancel(active_orders);
     }
 
-    void update_balance(auto& balance) {
+    template<class T>
+    void update_balance(T& balance) {
         produce_consume({{}}, [&, this](auto) {
             std::string body = this->signed_payload();
             std::string response = this->first_wins([&, this, body] {
