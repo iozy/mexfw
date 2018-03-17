@@ -170,7 +170,8 @@ public:
         return active_orders;
     }
 
-    std::string trade(auto& arb, const std::string& pair, const std::string& rate, const std::string& amt) {
+    template<class arb_t>
+    std::string trade(arb_t& arb, const std::string& pair, const std::string& rate, const std::string& amt) {
         std::string result;
         return result;
     }
@@ -194,7 +195,8 @@ public:
         cancel(active_orders);
     }
 
-    void update_balance(auto& balance) {
+    template<class T>
+    void update_balance(T& balance) {
         produce_consume({{}}, [&, this](auto) {
             std::string url = "https://c-cex.com/t/api.html?a=getbalances";
             std::string apisign = this->signed_payload(url);
