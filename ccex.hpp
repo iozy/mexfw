@@ -27,10 +27,8 @@ using namespace elle::format::hexadecimal;
 using namespace elle::chrono_literals;
 
 template<>
-class rest_api<CCEX>: public rest_api_base<CCEX> {
-    static constexpr auto bases = {"btc", "usd", "doge", "ltc"};
-    static constexpr auto base_rates = {"btc-usd", "btc-doge", "btc-ltc", "ltc-usd", "ltc-doge", "doge-usd"};
-    static constexpr auto rev_base_rates = {"usd-btc", "doge-btc", "ltc-btc", "usd-ltc", "doge-ltc", "usd-doge"};
+class rest_api<CCEX>: public rest_api_base<CCEX> {    
+    friend class CCEX;
     std::unordered_map<std::string, double> min_sizes;
     bool proxy_flood;
 
@@ -43,8 +41,6 @@ class rest_api<CCEX>: public rest_api_base<CCEX> {
 
 public:
     rest_api(bool proxy_flood = true): /*tp(std::thread::hardware_concurrency()),*/ proxy_flood(proxy_flood) {}
-
-    auto get_bases() { return bases; }
 
     auto get_trade_history(const std::vector<std::string>& pairs) {
         std::unordered_map<std::string, double> historic_rates;
@@ -317,46 +313,52 @@ public:
             const auto& doms = resp["result"].GetObject();
             std::stringstream s;
             //for(auto p: arb.all_pairs()) arb(p).ob.clear();
-            for(auto p: arb.all_pairs()) {
-                arb(p).ob.clear();
-            }
+            //for(auto p: arb.all_pairs()) {
+            //    arb(p).ob.clear();
+            //}
 
+            std::unordered_map<std::string, decltype(arbtools::EdgeProperties::ob)> obs;
             if(doms.HasMember("buy")) {
                 for(const auto& item: doms["buy"].GetArray()) {
                     std::string p = item["Market"].GetString();
-                    if(std::find(std::begin(base_rates), std::end(base_rates), p) != std::end(base_rates)) {
+                    if(std::find(std::begin(CCEX::base_rates), std::end(CCEX::base_rates), p) != std::end(CCEX::base_rates)) {
                         arb.add_pair(p, 0, "selllimit");
-                        arb(p).ob[json_to_str(item["Rate"])] += item["Quantity"].GetDouble();
+                        //arb(p).ob[json_to_str(item["Rate"])] += item["Quantity"].GetDouble();
+                        obs[p][json_to_str(item["Rate"])] += item["Quantity"].GetDouble();
                         continue;
                     }
-                    if(std::find(std::begin(rev_base_rates), std::end(rev_base_rates), p) != std::end(rev_base_rates)) 
+                    if(std::find(std::begin(CCEX::rev_base_rates), std::end(CCEX::rev_base_rates), p) != std::end(CCEX::rev_base_rates))
                         continue;
 
                     s<<std::fixed<<std::setprecision(8)<<1./item["Rate"].GetDouble();//+0.0017025646;
                     arb.add_pair(p, 0, "buylimit");
-                    arb(p).ob[s.str()] += item["Rate"].GetDouble() * item["Quantity"].GetDouble();
+                    //arb(p).ob[s.str()] += item["Rate"].GetDouble() * item["Quantity"].GetDouble();
+                    obs[p][s.str()] += item["Rate"].GetDouble() * item["Quantity"].GetDouble();
                     s.str({});
                 }
             }
             if(doms.HasMember("sell")) {
                 for(const auto& item: doms["sell"].GetArray()) {
                     std::string p = item["Market"].GetString();
-                    if(std::find(std::begin(rev_base_rates), std::end(rev_base_rates), p) != std::end(rev_base_rates)) {
+                    if(std::find(std::begin(CCEX::rev_base_rates), std::end(CCEX::rev_base_rates), p) != std::end(CCEX::rev_base_rates)) {
                         arb.add_pair(p, 0, "buylimit");
-                        arb(p).ob[json_to_str(item["Rate"])] += item["Quantity"].GetDouble();
+                        //arb(p).ob[json_to_str(item["Rate"])] += item["Quantity"].GetDouble();
+                        obs[p][json_to_str(item["Rate"])] += item["Quantity"].GetDouble();
                         continue;
                     }
-                    if(std::find(std::begin(base_rates), std::end(base_rates), p) != std::end(base_rates)) 
+                    if(std::find(std::begin(CCEX::base_rates), std::end(CCEX::base_rates), p) != std::end(CCEX::base_rates))
                         continue;
 
                     s<<std::fixed<<std::setprecision(8)<<1./item["Rate"].GetDouble();//+0.0017025646;
                     arb.add_pair(p, 0, "selllimit");
-                    arb(p).ob[s.str()] += item["Rate"].GetDouble() * item["Quantity"].GetDouble();
+                    //arb(p).ob[s.str()] += item["Rate"].GetDouble() * item["Quantity"].GetDouble();
+                    obs[p][s.str()] += item["Rate"].GetDouble() * item["Quantity"].GetDouble();
                     s.str({});
                 }
             }
-            for(auto p: arb.all_pairs()) {
-                arb.recalc_rates(p);
+            for(auto itm: obs) {
+                arb(itm.first).ob = itm.second;
+                arb.recalc_rates(itm.first);
             }
 
         }, 10);

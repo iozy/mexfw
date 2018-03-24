@@ -10,6 +10,7 @@
 #include <elle/reactor/signal.hh>
 #include <elle/reactor/Channel.hh>
 #include <elle/reactor/http/Request.hh>
+#include <elle/reactor/fsm.hh>
 #include <ctpl.h>
 #include "exchanges.hpp"
 #include "mexfw.hpp"
@@ -192,17 +193,29 @@ int main(int argc, char *argv[]) {
                         auto groups = groupping(cycle, sizes, balance);
 
                         for(auto g : groups) {
-                            std::cout << "Trading group " << g << '\n';
-                            elle::With<Scope>() << [&](Scope & scope_trading) {
-                                for(auto p : g) {
-                                    scope_trading.run_background("trading " + p, [&, p] {
-                                        std::cout << ">> Trading " << p << " " << sizes[p] << '\n'; 
-                                        api.trade(arb, p, sizes[p]);
-                                    });
-                                }
-
-                                scope_trading.wait(3s);
-                            };
+                            fsm::Machine m;
+                            Signal sto;
+                            bool failed = true;
+                            auto& trading_state = m.state_make("trading", [&, g]{
+                                std::cout<<"trading "<<g<<'\n';
+                                elle::With<Scope>() << [&, g](Scope& s) {
+                                    for(auto p: g)
+                                        s.run_background("trading "+p, [&, p] {
+                                            api.trade(arb, p, sizes[p]);
+                                        });
+                                    s.wait(10s);
+                                };
+                                sleep(10s);
+                                sto.signal();
+                            });
+                            auto& failed_state = m.state_make("failed", [g]{ std::cout<<"failed "<<g<<'\n'; });
+                            auto& done_state = m.state_make("done", [&, g]{
+                                std::cout<<"done "<<g<<'\n'; failed = false;
+                            });
+                            m.transition_add(trading_state, done_state, Waitables{&sbu}).action([]{std::cout<<"going done\n";});
+                            m.transition_add(trading_state, failed_state, Waitables{&sto}).action([]{std::cout<<"going timeout\n";});
+                            m.run();
+                            if(failed) break;	
                         }
 
                         std::cout << "cycle is traded\n";
