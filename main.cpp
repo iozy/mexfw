@@ -65,7 +65,7 @@ int main(int argc, char *argv[]) {
             api.load_nonces();
             proxies_loaded.wait();
             std::unordered_map<std::string, double> balance, b0;
-            Signal sbu, sfo;
+            Signal sbu, sbc, sfo;
             //std::cout<<"pairs="<<api.get_all_pairs()<<'\n';
             //std::cout<<"opened orders: "<<api.get_open_orders()<<'\n';
             /*for(auto b: EXCHANGE::bases) {
@@ -73,9 +73,15 @@ int main(int argc, char *argv[]) {
             }
             std::cout<<'\n';*/
             scope.run_background("update_balance", [&] {
+                std::unordered_map<std::string, double> old_balance;
                 while(!sched.done()) {
                     api.update_balance(balance);
                     sbu.signal();
+                    if(balance != old_balance) {
+                        sbc.signal();
+                        std::cout<<"balance changed\n";
+                    }
+                    old_balance = balance;
                     sleep(1s);
                 }
             });
@@ -194,26 +200,54 @@ int main(int argc, char *argv[]) {
 
                         for(auto g : groups) {
                             fsm::Machine m;
-                            Signal sto;
+                            // signals: timeout, go_next, signal not enough
+                            Signal sto, go_nxt, sne;
                             bool failed = true;
+                            auto gb0 = balance;
                             auto& trading_state = m.state_make("trading", [&, g]{
                                 std::cout<<"trading "<<g<<'\n';
                                 elle::With<Scope>() << [&, g](Scope& s) {
                                     for(auto p: g)
                                         s.run_background("trading "+p, [&, p] {
-                                            api.trade(arb, p, sizes[p]);
+                                            std::cout<<"placing order "<<api.tradesz(arb, p, sizes[p])<<'\n';
+                                        });                                    
+                                    if(s.wait(30s)) {
+                                        s.run_background("balance_checking", [&]{
+                                            while(true) {
+                                                sbc.wait(3s);
+                                                auto d = delta(gb0, balance);
+
+                                                // get last group and last coin in last pair
+                                                auto last_coin = as_pair(*g.rbegin()).second;
+                                                std::cout<<"d="<<d<<" c="<<last_coin<<" sizes["<<*g.rbegin()<<"]="<<sizes[*g.rbegin()]<<'\n';
+                                                if(d[last_coin] >= sizes[*g.rbegin()].second) {
+                                                    std::cout<<"got enough!\n";
+                                                    go_nxt.signal();
+                                                    break;
+                                                }
+                                                else {
+                                                    std::cout<<"not enough(((\n";
+                                                    //sne.signal();
+                                                }
+                                            }
                                         });
-                                    s.wait(10s);
+                                        if(!s.wait(30s)) {
+                                            std::cout<<"balance completion timeout\n";
+                                            sto.signal();
+                                        }
+                                    } else {
+                                        std::cout<<"placing order timeout\n";
+                                        sto.signal();
+                                    }
                                 };
-                                sleep(10s);
-                                sto.signal();
+
                             });
                             auto& failed_state = m.state_make("failed", [g]{ std::cout<<"failed "<<g<<'\n'; });
                             auto& done_state = m.state_make("done", [&, g]{
                                 std::cout<<"done "<<g<<'\n'; failed = false;
                             });
-                            m.transition_add(trading_state, done_state, Waitables{&sbu}).action([]{std::cout<<"going done\n";});
-                            m.transition_add(trading_state, failed_state, Waitables{&sto}).action([]{std::cout<<"going timeout\n";});
+                            m.transition_add(trading_state, done_state, Waitables{&go_nxt}).action([]{std::cout<<"group done\n";});
+                            m.transition_add(trading_state, failed_state, Waitables{&sto}).action([]{std::cout<<"failed\n";});
                             m.run();
                             if(failed) break;	
                         }

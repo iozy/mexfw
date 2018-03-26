@@ -167,26 +167,13 @@ public:
     }
 
     template<class arb_t>
-    std::string trade(arb_t& arb, const std::string& p, const std::pair<double, double>& szp) {
+    std::string trade(arb_t& arb, const std::string& p, const std::string& price, double amt) {
         std::string result;
-        std::string rate, quantity, market, type;
-        market = arb(p).canonical;
-        type = arb(p).ord_type;
-        if(type == "buylimit"){
-            double amt = szp.second / (1 - CCEX::fee);
-            rate = arb.get_rate2(p, amt);
-            quantity = arbtools::double2string(amt);
-        }
-        else {
-            double amt = szp.first;
-            rate = arb.get_rate1(p, amt);
-            quantity = arbtools::double2string(amt);
-        }
         produce_consume({{}}, [&, this](auto) {
-            std::string url = "https://c-cex.com/t/api.html?a="+type+"&market="+market+"&rate="+rate+"&quantity="+quantity;
+            std::string url = "https://c-cex.com/t/api.html?a="+arb(p).ord_type+"&market="+arb(p).canonical+"&rate="+price+"&quantity="+arbtools::double2string(amt);
             std::cout<<"doing trade url="<<url<<'\n';
             std::string apisign = this->signed_payload(url);
-            /*std::string response = this->first_wins([&, this] {
+            std::string response = this->first_wins([&, this] {
                 http::Request::Configuration conf(3s, {}, http::Version::v11, true, this->get_proxy());
                 conf.header_add("apisign", apisign);
                 http::Request r(url, http::Method::GET, "application/json", conf);
@@ -211,7 +198,58 @@ public:
                 throw std::runtime_error(resp["message"].GetString());
             }
             result = resp["result"]["uuid"].GetString();
-            */
+
+
+        });
+
+        return result;
+    }
+
+    template<class arb_t>
+    std::string tradesz(arb_t& arb, const std::string& p, const std::pair<double, double>& szp) {
+        std::string result;
+        std::string rate, quantity, market, type;
+        market = arb(p).canonical;
+        type = arb(p).ord_type;
+        if(type == "buylimit"){
+            double amt = szp.second / (1 - CCEX::fee);
+            rate = arb.get_rate2(p, amt);
+            quantity = arbtools::double2string(amt);
+        }
+        else {
+            double amt = szp.first;
+            rate = arb.get_rate1(p, amt);
+            quantity = arbtools::double2string(amt);
+        }
+        produce_consume({{}}, [&, this](auto) {
+            std::string url = "https://c-cex.com/t/api.html?a="+type+"&market="+market+"&rate="+rate+"&quantity="+quantity;
+            std::cout<<"doing trade url="<<url<<'\n';
+            std::string apisign = this->signed_payload(url);
+            std::string response = this->first_wins([&, this] {
+                http::Request::Configuration conf(3s, {}, http::Version::v11, true, this->get_proxy());
+                conf.header_add("apisign", apisign);
+                http::Request r(url, http::Method::GET, "application/json", conf);
+                r.finalize();
+
+                if(r.status() != http::StatusCode::OK) {
+                    throw std::runtime_error("status code is not ok");
+                }
+                std::string answer = r.response().string();
+                if(answer.length() == 0) throw std::runtime_error("empty response");
+                return answer;
+            }, 1);
+            std::cout<<"response="<<response<<'\n';
+            auto resp = parse_str(response);
+
+            if(resp.HasParseError()) {
+                std::cout << "Failed to parse: " << response << '\n';
+                return;
+            }
+            if(resp.IsObject() && !resp["success"].GetBool()) {
+                std::cout<<"Error: "<<resp["message"].GetString()<<'\n';
+                throw std::runtime_error(resp["message"].GetString());
+            }
+            result = resp["result"]["uuid"].GetString();
 
         });
 
@@ -223,7 +261,32 @@ public:
         produce_consume(ids, [&, this](std::string id) {
             result[id] = this->first_wins([&, id, this] {
                 bool res = false;
-                return  res;
+                std::string url = "https://c-cex.com/t/api.html?a=cancel&uuid="+id;
+                std::string apisign = this->signed_payload(url);
+                http::Request::Configuration conf(5s, {}, http::Version::v11, true, this->get_proxy());
+                conf.header_add("apisign", apisign);
+                http::Request r(url, http::Method::GET, "application/x-www-form-urlencoded", conf);
+                //r << body;
+                r.finalize();
+
+                if(r.status() != http::StatusCode::OK) {
+                    throw std::runtime_error("status code is not ok");
+                }
+                std::string answer = r.response().string();
+                if(answer.length() == 0) throw std::runtime_error("empty response");
+                auto resp = parse_str(answer);
+
+                if(resp.HasParseError()) {
+                    std::cout << "Failed to parse: " << answer << '\n';
+                    return false;
+                }
+
+                if(resp.IsObject() && !resp["success"].GetBool()) {
+                    std::cout<<"Error: "<<resp["message"].GetString()<<'\n';
+                    throw std::runtime_error(resp["message"].GetString());
+                }
+                res = resp["success"].GetBool();
+                return res;
             }, proxy_flood ? 4 : 1);
         });
         for(auto it = active_orders.begin(); it != active_orders.end();) {

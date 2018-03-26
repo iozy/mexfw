@@ -13,8 +13,8 @@ struct CCEX {
     /*c-cex.com*/
     static constexpr auto fee = 0.002;
     static constexpr auto bases = {"btc", "doge", "ltc", "usd"}; 
-    static constexpr auto base_rates = {"btc-usd", "btc-doge", "btc-ltc", "ltc-usd", "ltc-doge", "doge-usd"};
-    static constexpr auto rev_base_rates = {"usd-btc", "doge-btc", "ltc-btc", "usd-ltc", "doge-ltc", "usd-doge"};
+    static constexpr auto base_rates = {"btc-usd", "doge-btc", "ltc-btc", "ltc-usd", "doge-ltc", "doge-usd"};
+    static constexpr auto rev_base_rates = {"usd-btc", "btc-doge", "btc-ltc", "usd-ltc", "ltc-doge", "usd-doge"};
     static constexpr auto delimeter = "-";
 };
 constexpr decltype(CCEX::bases) CCEX::bases;
